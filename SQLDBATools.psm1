@@ -13,4 +13,4 @@
 . $PSScriptRoot\Export-Password.ps1
 . $PSScriptRoot\Send-SQLMail.ps1
 . $PSScriptRoot\Get-SQLServices_HashArray.ps1
-
+. $PSScriptRoot\Get-PerfMonCounters.ps1
