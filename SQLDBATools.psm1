@@ -5,6 +5,16 @@
     Modified Date:- 23-Oct-2017
     Version:-       0.1
 #>
+Import-Module SQLPS -DisableNameChecking;
+
+Set-Variable -Name InventoryInstance -Value 'TUL1DBAPMTDB1' -Scope Global;
+Set-Variable -Name InventoryDatabase -Value 'SQLDBATools' -Scope Global;
+Set-Variable -Name SQLDBATools_ResultsDirectory -Value 'C:\Temp\SQLDBATools' -Scope Global;
+
+. $PSScriptRoot\Functions_ADOQuery.ps1
+. $PSScriptRoot\Execute-SqlQuery.ps1
+. $PSScriptRoot\Out-DataTable.ps1
+. $PSScriptRoot\Run-CommandMultiThreaded.ps1
 . $PSScriptRoot\Get-ServerInfo.ps1
 . $PSScriptRoot\Get-VolumeInfo.ps1
 . $PSScriptRoot\Get-DBFiles.ps1
@@ -14,3 +24,9 @@
 . $PSScriptRoot\Send-SQLMail.ps1
 . $PSScriptRoot\Get-SQLServices_HashArray.ps1
 . $PSScriptRoot\Get-PerfMonCounters.ps1
+#. $PSScriptRoot\Get-SQLInstance.ps1
+. $PSScriptRoot\Get-DatabaseBackupInfo.ps1
+. $PSScriptRoot\Get-DatabaseBackupInfo_SMO.ps1
+. $PSScriptRoot\Collect-DatabaseBackupInfo.ps1
+
+

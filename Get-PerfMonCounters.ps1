@@ -6,7 +6,7 @@
         [String[]]$ServerName = $env:COMPUTERNAME,
         [String]$InstanceName
     )
-    Import-Module SQLPS;
+    Import-Module SQLPS -DisableNameChecking;
     
     # Loop through each Server provided in Parameter
     foreach( $srv in $ServerName)

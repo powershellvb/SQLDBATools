@@ -16,7 +16,7 @@
         }
         foreach ($Computer in $ComputerName)
         {
-            $diskInfo +=  Get-WmiObject -Class win32_volume -ComputerName $Computer -Filter "DriveType=3" | 
+            $diskInfo +=  Get-WmiObject -Class win32_volume -ComputerName $Computer -Filter "DriveType=3" | Where-Object {$_.Name -notlike '\\?\*'} |
             Select-Object -Property @{l='ComputerName';e={$_.PSComputerName}}, 
                                     @{l='VolumeName';e={$_.Name}}, 
                                     @{l='Capacity(GB)';e={$_.Capacity / 1GB -AS [INT]}},
