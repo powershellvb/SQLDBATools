@@ -7,10 +7,8 @@
 #>
 Import-Module SQLPS -DisableNameChecking;
 
-Set-Variable -Name InventoryInstance -Value 'TUL1DBAPMTDB1' -Scope Global;
-Set-Variable -Name InventoryDatabase -Value 'SQLDBATools' -Scope Global;
-Set-Variable -Name SQLDBATools_ResultsDirectory -Value 'C:\Temp\SQLDBATools' -Scope Global;
-
+# File :Set-EnvironmentVariables.ps1" is present @ C:\Users\adwivedi\OneDrive - TiVo Inc\Tivo-Assignments\Set-EnvironmentVariables.ps1
+Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
 . $PSScriptRoot\Functions_ADOQuery.ps1
 . $PSScriptRoot\Execute-SqlQuery.ps1
 . $PSScriptRoot\Out-DataTable.ps1
@@ -28,5 +26,6 @@ Set-Variable -Name SQLDBATools_ResultsDirectory -Value 'C:\Temp\SQLDBATools' -Sc
 . $PSScriptRoot\Get-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Get-DatabaseBackupInfo_SMO.ps1
 . $PSScriptRoot\Collect-DatabaseBackupInfo.ps1
+. $PSScriptRoot\Get-RebootHistory.ps1
 
 
