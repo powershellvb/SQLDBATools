@@ -2,13 +2,14 @@
     Module Name:-   SQLDBATools
     Created By:-    Ajay Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
-    Modified Date:- 23-Oct-2017
+    Modified Date:- 09-Apr-2018
     Version:-       0.1
 #>
 Import-Module SQLPS -DisableNameChecking;
 
 # File :Set-EnvironmentVariables.ps1" is present @ C:\Users\adwivedi\OneDrive - TiVo Inc\Tivo-Assignments\Set-EnvironmentVariables.ps1
 Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
+. $PSScriptRoot\Discover-SQLInstances.ps1
 . $PSScriptRoot\Functions_ADOQuery.ps1
 . $PSScriptRoot\Execute-SqlQuery.ps1
 . $PSScriptRoot\Out-DataTable.ps1
