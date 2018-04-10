@@ -54,12 +54,10 @@ Server02      G:\                 674            483            72           191
 
     BEGIN 
     {
-        Write-Host "Inside Begin Block";
         $Result = @();
     }
     PROCESS 
     {
-        Write-Host "Inside PROCESS Block";
         if ($_ -ne $null)
         {
             $ComputerName = $_;
