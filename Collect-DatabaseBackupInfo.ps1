@@ -17,9 +17,9 @@
     else {
         
         # Making entry into General Logs File
-        "$SQLInstance " | Out-File -Append $ExecutionLogsFile;
+        #"$SQLInstance " | Out-File -Append $ExecutionLogsFile;
 
-        $errorFile = "$SQLDBATools_ResultsDirectory\Logs\Collect-DatabaseBackupInfo\$($ServerInstance -replace '\\','__')__ERROR.txt";
+        $errorFile = "$SQLDBATools_ResultsDirectory\Logs\Get-DatabaseBackupInfo\$($ServerInstance -replace '\\','__').txt";
         Push-Location;
 
         try {
@@ -41,8 +41,8 @@
             $FailedItem = $_.Exception.ItemName;
             
             # Create if Error Log path does not exist
-            if (Test-Path "$SQLDBATools_ResultsDirectory\Logs\Collect-DatabaseBackupInfo") {
-                New-Item "$SQLDBATools_ResultsDirectory\Logs\Collect-DatabaseBackupInfo" -ItemType directory;
+            if (Test-Path "$SQLDBATools_ResultsDirectory\Logs\Get-DatabaseBackupInfo") {
+                New-Item "$SQLDBATools_ResultsDirectory\Logs\Get-DatabaseBackupInfo" -ItemType directory;
             }
 
             # Drop old error log file
@@ -50,8 +50,13 @@
                 Remove-Item $errorFile;
             }
 
-            $ErrorMessage | Out-File $errorFile;
-            Write-Verbose "Error occurred while trying to get BackupInfo for server [$ServerInstance]. Kindly check logs at $errorFile";
+            # Output Error in file
+            @"
+Error occurred while running 
+Collect-DatabaseBackupInfo -SQLInstance $SQLInstance -Verbose
+$ErrorMessage
+"@ | Out-File $errorFile;
+            Write-Verbose "Error occurred in while trying to get BackupInfo for server [$ServerInstance]. Kindly check logs at $errorFile";
         }
         
         Pop-Location;
