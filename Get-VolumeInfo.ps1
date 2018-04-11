@@ -81,6 +81,7 @@ Server02      G:\                 674            483            72           191
                                     'Used Space(GB)'= $diskInfo.'Used Space(GB)';
                                     'Used Space(%)'= $diskInfo.'Used Space(%)';
                                     'FreeSpace(GB)'= $diskInfo.'FreeSpace(GB)';
+                                    'Label'=$diskInfo.Label;
                                   };
 
                 $obj = New-Object -TypeName psobject -Property $props;

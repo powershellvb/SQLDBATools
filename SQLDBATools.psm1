@@ -27,6 +27,6 @@ Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
 . $PSScriptRoot\Get-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Get-DatabaseBackupInfo_SMO.ps1
 . $PSScriptRoot\Collect-DatabaseBackupInfo.ps1
-. $PSScriptRoot\Get-RebootHistory.ps1
+. $PSScriptRoot\Collect-VolumeInfo.ps1
 
 

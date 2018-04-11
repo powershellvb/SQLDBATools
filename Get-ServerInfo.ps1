@@ -65,19 +65,75 @@ Server02      Microsoft Windows Server 2008 R2 Enterprise  Service Pack 1 3/22/2
                 $lastBoot = $os.ConvertToDateTime($os.LastBootUpTime);
             }
 
+            $IPAddresses = [String]'';
+            [System.Net.Dns]::GetHostAddresses($Comp) | `
+                foreach `
+                {
+                    if ($IPAddresses.Length -eq 0)
+                    {
+                        $IPAddresses = $_.IPAddressToString
+                    }
+                    <#
+                    else
+                    {
+                        $IPAddresses = $IPAddresses+';'+$_.IPAddressToString
+                    }
+                    #>
+                };
+
             $props = [Ordered]@{ 'ComputerName'=$comp;
+                        'HostName'=$cs.Name;
+                        'IPAddress'= $IPAddresses;
+                        'Domain'=$cs.Domain;
                         'OS'=$os.Caption;
                         'SPVersion'=$os.CSDVersion;
                         'LastBootTime'=$lastBoot;
                         'UpTime'= [String]$uptime.Days + " Days " + $uptime.Hours + " Hours " + $uptime.Minutes + " Minutes" ;
                         #'Mfgr'=$cs.manufacturer;
                         'Model'=$cs.Model;
-                        'RAM(GB)'=$cs.totalphysicalmemory/1GB -AS [int];
+                        'RAM(MB)'=$cs.totalphysicalmemory/1MB -AS [int];
                         'CPU'=$cs.NumberOfLogicalProcessors;
                       }
 
             $obj = New-Object -TypeName psobject -Property $props;
             $Result += $obj;
+
+            # Check if the $ComputerName is virtual Name
+            if ($Comp -ne $cs.Name)
+            {
+                $IPAddresses = [String]'';
+                [System.Net.Dns]::GetHostAddresses($Comp) | `
+                    foreach `
+                    {
+                        if ($IPAddresses.Length -eq 0)
+                        {
+                            $IPAddresses = $_.IPAddressToString
+                        }
+                        <#
+                        else
+                        {
+                            $IPAddresses = $IPAddresses+';'+$_.IPAddressToString
+                        }
+                        #>
+                    };
+
+                $props = [Ordered]@{ 'ComputerName'=$cs.Name;
+                                    'HostName'=$cs.Name;
+                                    'IPAddress'= $IPAddresses;
+                                    'Domain'=$cs.Domain;
+                                    'OS'=$os.Caption;
+                                    'SPVersion'=$os.CSDVersion;
+                                    'LastBootTime'=$lastBoot;
+                                    'UpTime'= [String]$uptime.Days + " Days " + $uptime.Hours + " Hours " + $uptime.Minutes + " Minutes" ;
+                                    #'Mfgr'=$cs.manufacturer;
+                                    'Model'=$cs.Model;
+                                    'RAM(MB)'=$cs.totalphysicalmemory/1MB -AS [int];
+                                    'CPU'=$cs.NumberOfLogicalProcessors;
+                                  }
+
+                $obj = New-Object -TypeName psobject -Property $props;
+                $Result += $obj;
+            }
         }
     }
     END 
