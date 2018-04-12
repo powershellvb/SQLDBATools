@@ -5,28 +5,34 @@
     Modified Date:- 09-Apr-2018
     Version:-       0.1
 #>
-Import-Module SQLPS -DisableNameChecking;
+#Import-Module SQLPS -DisableNameChecking;
 
 # File :Set-EnvironmentVariables.ps1" is present @ C:\Users\adwivedi\OneDrive - TiVo Inc\Tivo-Assignments\Set-EnvironmentVariables.ps1
 Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
+. $PSScriptRoot\Add-ApplicationInfo.ps1
+. $PSScriptRoot\Add-ServerInfo.ps1
+. $PSScriptRoot\Collect-DatabaseBackupInfo.ps1
+. $PSScriptRoot\Collect-VolumeInfo.ps1
 . $PSScriptRoot\Discover-SQLInstances.ps1
-. $PSScriptRoot\Functions_ADOQuery.ps1
 . $PSScriptRoot\Execute-SqlQuery.ps1
-. $PSScriptRoot\Out-DataTable.ps1
-. $PSScriptRoot\Run-CommandMultiThreaded.ps1
+. $PSScriptRoot\Export-Password.ps1
+. $PSScriptRoot\Functions_ADOQuery.ps1
+#. $PSScriptRoot\Get-DBFiles.ps1
+. $PSScriptRoot\Get-RunningQueries.ps1
 . $PSScriptRoot\Get-ServerInfo.ps1
 . $PSScriptRoot\Get-VolumeInfo.ps1
-. $PSScriptRoot\Get-DBFiles.ps1
-. $PSScriptRoot\Get-RunningQueries.ps1
-. $PSScriptRoot\Run-sp_WhoIsActive.ps1
-. $PSScriptRoot\Export-Password.ps1
-. $PSScriptRoot\Send-SQLMail.ps1
 . $PSScriptRoot\Get-SQLServices_HashArray.ps1
 . $PSScriptRoot\Get-PerfMonCounters.ps1
 #. $PSScriptRoot\Get-SQLInstance.ps1
 . $PSScriptRoot\Get-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Get-DatabaseBackupInfo_SMO.ps1
-. $PSScriptRoot\Collect-DatabaseBackupInfo.ps1
-. $PSScriptRoot\Collect-VolumeInfo.ps1
+. $PSScriptRoot\Out-DataTable.ps1
+. $PSScriptRoot\Script-SQLDatabaseRestore.ps1
+. $PSScriptRoot\Run-CommandMultiThreaded.ps1
+. $PSScriptRoot\Run-sp_WhoIsActive.ps1
+. $PSScriptRoot\Send-SQLMail.ps1
 
-
+<#
+Remove-Module SQLDBATools;
+Import-Module SQLDBATools -DisableNameChecking;
+#>

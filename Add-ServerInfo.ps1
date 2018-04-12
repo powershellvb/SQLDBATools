@@ -4,16 +4,19 @@
     [CmdletBinding()]
     Param (
         [Parameter(ValueFromPipeline=$true,
-                   ValueFromPipelineByPropertyName=$true)]
+                   ValueFromPipelineByPropertyName=$true,
+                   Mandatory=$True,
+                   Position=1)]
         [Alias('ServerName','MachineName')]
-        [String]$ComputerName = $env:COMPUTERNAME,
+        [String]$ComputerName,
 
         [ValidateSet('Prod','QA','Test','Dev')]
-        [Parameter(mandatory=$true)]
+        [Parameter(Mandatory=$True,Position=2)]
         [String]$EnvironmentType,
 
-        [ValidateSet('Yes','No')]
-        [String]$CallServerInfoTSQLProcedure = 'Yes'
+        [parameter(HelpMessage="Choose 'No' when adding multiple servers at same time")]
+        [ValidateSet("Yes","No")]
+        [String]$CallServerInfoTSQLProcedure = "Yes"
     )
 
     if ($ComputerName -eq "")
