@@ -64,7 +64,7 @@
         [Alias('DestinationDatabase_NewName')]
         [String]$RestoreAs
     )
-
+    
     # Create File for storing result
     $ResultFile = "C:\temp\RestoreDatabaseScripts_$(Get-Date -Format ddMMMyyyyTHHmm).sql";
 
@@ -251,7 +251,7 @@ RESTORE DATABASE [$dbName] FROM DISK ='$($file.BackupFile)'
 
                     $tsql4Database += @"
 
-                MOVE '$($f.LogicalName)' TO '$PhysicalPath_New',
+			MOVE '$($f.LogicalName)' TO '$PhysicalPath_New',
 "@;
                 
                 }
@@ -262,7 +262,7 @@ RESTORE DATABASE [$dbName] FROM DISK ='$($file.BackupFile)'
             {
                 $tsql4Database += @"
 
-            STATS = 3
+			$(if($Overwrite -and $fileCounter_Database -eq 1){'REPLACE, '}) $(if($NoRecovery){'NORECOVERY, '})STATS = 3
 GO
 "@;
             }
@@ -270,7 +270,7 @@ GO
             {
                 $tsql4Database += @"
 
-            NORECOVERY, STATS = 3
+			$(if($Overwrite -and $fileCounter_Database -eq 1){'REPLACE, '})NORECOVERY, STATS = 3
 GO
 "@;
             }
