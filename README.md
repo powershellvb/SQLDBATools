@@ -2,7 +2,7 @@
 Powershell Module containing cmdlets for carrying out SQL DBA activities. It includes:-
 
 ## Get-ServerInfo
-This function returns basic information about machine passed as parameter.
+This function returns basic information about machine(s) passed in pipeline or as value. This includes Operating System, Service Pack, LastBoot Time, Model, RAM & CPU for computer(s).
 
 ![](GitHub_Images/Get-ServerInfo.gif)
 
