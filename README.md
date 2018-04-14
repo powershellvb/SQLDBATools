@@ -34,3 +34,8 @@ It can be used for performing database restore operation with latest available b
 Can be used to restore database for Point In Time.
 Can be used for restoring database with new name on Destination SQL Instance.
 
+![](GitHub_Images/Help___Script-SQLDatabaseRestore.gif)
+
+For more information on how to use this, kindly [watch below YouTube video](https://youtu.be/v4r2lhIFii4):-
+
+[![Watch this video](GitHub_Images/PlayThumbnail____Script-SQLDatabaseRestore.jpg)](https://youtu.be/v4r2lhIFii4)
