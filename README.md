@@ -26,3 +26,11 @@ PS C:\\> <b>Get-VolumeInfo</b> -ComputerName 'BAN-1ADWIVEDI-L' | ft -AutoSize
 </table>
 
 This function returns utilization of Disk Volumes on machine including mounted volumes.
+
+## Script-SQLDatabaseRestore
+
+This function accepts backup path, data and log directory for restore operation on destination sql instance, and create RESTORE script for database restore/migration activity.
+It can be used for performing database restore operation with latest available backups on BackupPath.
+Can be used to restore database for Point In Time.
+Can be used for restoring database with new name on Destination SQL Instance.
+
