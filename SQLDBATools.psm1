@@ -18,6 +18,7 @@ Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
 . $PSScriptRoot\Export-Password.ps1
 . $PSScriptRoot\Functions_ADOQuery.ps1
 #. $PSScriptRoot\Get-DBFiles.ps1
+. $PSScriptRoot\Get-ProcessForDBA.ps1
 . $PSScriptRoot\Get-RunningQueries.ps1
 . $PSScriptRoot\Get-ServerInfo.ps1
 . $PSScriptRoot\Get-VolumeInfo.ps1

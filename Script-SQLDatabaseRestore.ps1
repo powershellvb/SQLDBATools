@@ -50,6 +50,8 @@
    Generates RESTORE tsql code for [Cosmo] and [DBA] databases upto time '2018-04-12 23:15:00' using Full/Diff/TLog backups from path '\\SQLBackups\ProdSrv01'.
 .LINK
     https://github.com/imajaydwivedi/SQLDBATools
+    https://www.mssqltips.com/sqlservertip/3209/understanding-sql-server-log-sequence-numbers-for-backups/
+    https://youtu.be/v4r2lhIFii4
 .NOTES
     Author: Ajay Dwivedi
     EMail:  ajay.dwivedi2007@gmail.com
@@ -63,6 +65,7 @@
                     ParameterSetName="BackupsFromPath")]
         [Parameter( Mandatory=$true,
                     ParameterSetName="RestoreAs_BackupFromPath" )]
+        [ValidateNotNullOrEmpty()]
         [Alias('PathOfBackups')]
         [String]$BackupPath,
 
@@ -81,6 +84,7 @@
         [String]$StopAtTime = $null,
 
         [Parameter( Mandatory=$true )]
+        [ValidateNotNullOrEmpty()]
         [Alias('Target_SQLInstance','SQLInstance_Destination')]
         [String]$Destination_SQLInstance,
         
@@ -99,10 +103,12 @@
         [Switch]$NoRecovery,
 
         [Parameter( Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
         [Alias('Destination_Data_Path','Data_Path_Destination')]
         [String]$DestinationPath_Data,
 
         [Parameter( Mandatory=$true)]
+        [ValidateNotNullOrEmpty()]
         [Alias('Destination_Log_Path','Log_Path_Destination')]
         [String]$DestinationPath_Log,
 
@@ -130,9 +136,11 @@
         [Alias('DestinationDatabase_NewName')]
         [String]$RestoreAs
     )
+
     
     # Create File for storing result
     $ResultFile = "C:\temp\RestoreDatabaseScripts_$(Get-Date -Format ddMMMyyyyTHHmm).sql";
+    
     if ([string]::IsNullOrEmpty($StopAtTime) -eq $false) 
     {
         # StopAt in String format
@@ -179,19 +187,42 @@
     # Final Query to execute against Destination
     $fileHeaders = @();
    
-    if (Test-Path -Path $BackupPath)
+    # Check if backups is to be searched from BackupPath/BackupHistory
+    if (([String]::IsNullOrEmpty($BackupPath)) -eq $false)
     {
+        Write-Verbose "Value for `$BackupPath parameter is provided. Checking its validity";
+        if ( (Test-Path -Path $BackupPath) -eq $false )
+        {
+            Write-Error "`$BackupPath value '$BackupPath' is invalid. Pls check again.";
+            return;
+        }
+
         Write-Verbose "Finding all files from path:- $BackupPath";
         $files = @(Get-ChildItem -Path $BackupPath -File -Recurse | Select-Object -ExpandProperty FullName);
-        #Write-Output $files;
 
-        Write-Verbose "Looping through all the files found.";
+        Write-Verbose "Reading Header of all the backup files found.";
         foreach ($bkpFile in $files)
         {
-            Write-Verbose "   Reading Header of file '$bkpFile'";
             $header = (Invoke-Sqlcmd -ServerInstance $Destination_SQLInstance -Query "restore headeronly from disk = '$bkpFile'");
+            if($header.BackupTypeDescription -eq 'Database')
+            {
+                $IsBaseBackupAvailable = $true;
+                if ($header.IsCopyOnly -eq 0)
+                {
+                    $IsValidForPointInTimeRecovery = $true;
+                }
+                else
+                {
+                    $IsValidForPointInTimeRecovery = $false;
+                }
+            }
+            else
+            {
+                $IsBaseBackupAvailable = $false; 
+                $IsValidForPointInTimeRecovery = $true;
+            }
 
-            $headerInfo = [Ordered]@{ 
+            $headerInfo = [Ordered]@{
                                     'BackupFile' = $bkpFile;
                                     'BackupTypeDescription' = $header.BackupTypeDescription;
                                     'ServerName' = $header.ServerName;
@@ -209,15 +240,252 @@
                                     'Collation' = $header.Collation;
                                     'IsCopyOnly' = $header.IsCopyOnly;
                                     'RecoveryModel' = $header.RecoveryModel;
+                                    'NextDiffBackupFile' = $null;
+                                    'NextTLogBackupFile' = $null;
+                                    'IsValidForPointInTimeRecovery' = $IsValidForPointInTimeRecovery;
+                                    'FilePresentOnDisk' = $true;
                                    }
             $obj = New-Object -TypeName psobject -Property $headerInfo;
             $fileHeaders += $obj;
+        }        
+    }
+    else #     Find backups from Backup History
+    {
+        Write-Host "Trying to read Backup History.";
+        if($SourceDatabase.Count -gt 0)
+        {            
+            $SourceDatabase_CommaSeparated = "'"+($SourceDatabase -join "','")+"'";
+            Write-Verbose "`$SourceDatabase_CommaSeparated = $SourceDatabase_CommaSeparated";
+        }
+
+
+        # Find databases whose backup history is available
+        $query_databasesFromBackupHistory = @"
+SET NOCOUNT ON;
+DECLARE @dbName VARCHAR(125),
+		@backupStartDate datetime,
+		@stopAtTime datetime;
+DECLARE @SQLString nvarchar(2000);  
+DECLARE @ParmDefinition nvarchar(500); 
+
+IF OBJECT_ID('tempdb..#BackupHistory') IS NOT NULL
+	DROP TABLE #BackupHistory;
+CREATE TABLE #BackupHistory
+(
+	[BackupFile] [nvarchar](260) NULL,
+	[BackupTypeDescription] [varchar](21) NULL,
+	[ServerName] [char](100) NULL,
+	[UserName] [nvarchar](128) NULL,
+	[DatabaseName] [nvarchar](128) NULL,
+	[DatabaseCreationDate] [datetime] NULL,
+	[BackupSize] [numeric](20, 0) NULL,
+	[FirstLSN] [numeric](25, 0) NULL,
+	[LastLSN] [numeric](25, 0) NULL,
+	[CheckpointLSN] [numeric](25, 0) NULL,
+	[DatabaseBackupLSN] [numeric](25, 0) NULL,
+	[BackupStartDate] [datetime] NULL,
+	[BackupFinishDate] [datetime] NULL,
+	[CompatibilityLevel] [tinyint] NULL,
+	[Collation] [nvarchar](128) NULL,
+	[IsCopyOnly] [bit] NULL,
+	[RecoveryModel] [nvarchar](60) NULL
+) ;
+
+/* Build the SQL string to get all latest backups for database. */  
+SET @SQLString =  
+     N'SELECT	BackupFile = bmf.physical_device_name,
+		CASE bs.type WHEN ''D'' THEN ''Database'' WHEN ''I'' THEN ''Differential database'' WHEN ''L'' THEN ''Log'' ELSE NULL END as BackupTypeDescription,
+		LTRIM(RTRIM(CAST(SERVERPROPERTY(''ServerName'') AS VARCHAR(125)))) as ServerName,
+		UserName = bs.user_name,
+		bs.database_name,
+		DatabaseCreationDate = bs.database_creation_date,
+		BackupSize = bs.backup_size,
+		FirstLSN = bs.first_lsn, 
+		LastLSN = bs.last_lsn, 
+		CheckpointLSN = bs.checkpoint_lsn,
+		DatabaseBackupLSN = bs.database_backup_lsn,
+		BackupStartDate = bs.backup_start_date,
+		BackupFinishDate = bs.backup_finish_date,
+		CompatibilityLevel = bs.compatibility_level,
+		Collation = bs.collation_name,
+		IsCopyOnly = bs.is_copy_only,
+		RecoveryModel = bs.recovery_model
+FROM	msdb.dbo.backupmediafamily AS bmf
+INNER JOIN msdb.dbo.backupset AS bs ON bmf.media_set_id = bs.media_set_id
+WHERE	database_name = @q_dbName
+AND		bs.backup_start_date >= @q_backupStartDate';  
+
+SET @ParmDefinition = N'@q_dbName varchar(125), @q_backupStartDate datetime2'; 
+  
+DECLARE databases_cursor CURSOR LOCAL FORWARD_ONLY FOR 
+		--	Find latest Full backup for each database
+		SELECT MAX(bs.backup_start_date) AS Latest_FullBackupDate, database_name
+		FROM msdb.dbo.backupmediafamily AS bmf INNER JOIN msdb.dbo.backupset AS bs 
+		ON bmf.media_set_id = bs.media_set_id WHERE bs.type='D' and is_copy_only = 0
+        $( if($RestoreCategory -eq 'PointInTime'){ "AND bs.backup_start_date <= '$StopAtTime'"} )
+        $( if($SourceDatabase.Count -gt 0){ if($Skip_Databases){"AND database_name NOT IN ($SourceDatabase_CommaSeparated)"}else{"AND database_name IN ($SourceDatabase_CommaSeparated)"} } )
+		GROUP BY database_name;
+
+OPEN databases_cursor
+FETCH NEXT FROM databases_cursor INTO @backupStartDate, @dbName;
+
+WHILE @@FETCH_STATUS = 0 
+BEGIN
+	BEGIN TRY
+		--	Find latest backups
+		INSERT #BackupHistory
+		EXECUTE sp_executesql @SQLString, @ParmDefinition,  
+							  @q_dbName = @dbName,
+							  @q_backupStartDate = @backupStartDate; 
+	END TRY
+	BEGIN CATCH
+		PRINT ' -- ---------------------------------------------------------';
+		PRINT ERROR_MESSAGE();
+		PRINT ' -- ---------------------------------------------------------';
+	END CATCH
+		
+	FETCH NEXT FROM databases_cursor INTO @backupStartDate, @dbName;
+END
+
+CLOSE databases_cursor;
+DEALLOCATE databases_cursor ;
+
+SELECT * FROM #BackupHistory;
+"@;
+
+        $databasesFromBackupHistory = Invoke-Sqlcmd -ServerInstance $Source_SQLInstance -Query $query_databasesFromBackupHistory;
+        $nodes = @(Invoke-Sqlcmd -ServerInstance $Source_SQLInstance -Query 'SELECT NodeName FROM sys.dm_os_cluster_nodes;' | Select-Object -ExpandProperty NodeName);
+        
+        foreach ($header in $databasesFromBackupHistory)
+        {
+            if($header.BackupTypeDescription -eq 'Database')
+            {
+                $IsBaseBackupAvailable = $true;
+                if ($header.IsCopyOnly -eq 1)
+                {
+                    $IsValidForPointInTimeRecovery = $false;
+                }
+                else
+                {
+                    $IsValidForPointInTimeRecovery = $true;
+                }
+            }
+            else
+            {
+                $IsBaseBackupAvailable = $false; 
+                $IsValidForPointInTimeRecovery = $true;
+            }
+
+            # Check if backupFile is connecting
+            $bkpFile = $header.BackupFile;
+
+            if( ([System.IO.File]::Exists($bkpFile)) -eq $false  -and $bkpFile -like "*:*")
+            {
+                Write-Verbose "   Trying to find network path for backup file  $bkpFile";
+                $n = "\\$($header.ServerName)\"+($bkpFile -replace ":","$");
+                if ([System.IO.File]::Exists($n)) { $bkpFile = $n; }
+                elseif ($nodes.Count -gt 0)
+                {
+                    foreach($node in $nodes)
+                    {
+                        $n = "\\$node\"+($bkpFile -replace ":","$");
+                        if ([System.IO.File]::Exists($n)) { $bkpFile = $n; break; }
+                    }
+                }
+            }
+
+            if ([System.IO.File]::Exists($bkpFile)) { $FilePresentOnDisk = $true; } else {$FilePresentOnDisk = $false;}
+
+            $headerInfo = [Ordered]@{
+                                    'BackupFile' = $bkpFile;
+                                    'BackupTypeDescription' = $header.BackupTypeDescription;
+                                    'ServerName' = $header.ServerName;
+                                    'UserName' = $header.UserName;
+                                    'DatabaseName' = $header.DatabaseName;
+                                    'DatabaseCreationDate' = $header.DatabaseCreationDate;
+                                    'BackupSize' = $header.BackupSize;
+                                    'FirstLSN' = $header.FirstLSN;
+                                    'LastLSN' = $header.LastLSN;
+                                    'CheckpointLSN' = $header.CheckpointLSN;
+                                    'DatabaseBackupLSN' = $header.DatabaseBackupLSN;
+                                    'BackupStartDate' = $header.BackupStartDate;
+                                    'BackupFinishDate' = $header.BackupFinishDate;
+                                    'CompatibilityLevel' = $header.CompatibilityLevel;
+                                    'Collation' = $header.Collation;
+                                    'IsCopyOnly' = $header.IsCopyOnly;
+                                    'RecoveryModel' = $header.RecoveryModel;
+                                    'NextDiffBackupFile' = $null;
+                                    'NextTLogBackupFile' = $null;
+                                    'IsValidForPointInTimeRecovery' = $IsValidForPointInTimeRecovery;
+                                    'FilePresentOnDisk' = $FilePresentOnDisk;
+                                   }
+            $obj = New-Object -TypeName psobject -Property $headerInfo;
+            $fileHeaders += $obj;
+            
         }
     }
-    else
+    
+    if (@($fileHeaders | Where-Object {$_.FilePresentOnDisk -eq $false}).Count -gt 0)
     {
-        Write-Error "Invalid Backup Path '$BackupPath' provided";
-        return;
+        " Below backup files are missing from disk:- " | Write-Host -ForegroundColor DarkRed -BackgroundColor Yellow;
+        $fileHeaders | Where-Object {$_.FilePresentOnDisk -eq $false} | Select-Object DatabaseName, BackupTypeDescription, BackupFile | Write-Host -ForegroundColor Magenta -BackgroundColor Yellow;
+    }
+
+    Write-Verbose "Removing system databases, and backup files not present on disk.";
+    $fileHeaders = ($fileHeaders | Where-Object {@('master','model','msdb') -notcontains $_.DatabaseName -and $_.FilePresentOnDisk -eq $true} | Sort-Object -Property DatabaseName, BackupStartDate);
+
+    Write-Verbose "Updating value for additional fields like NextDiffBackupFile and NextTLogBackupFile";
+    $databases = @($fileHeaders | Select-Object DatabaseName -Unique | Select-Object -ExpandProperty DatabaseName);
+    foreach ($dbName in $databases)
+    {
+        Write-Verbose "   Lopping for Database [$dbName]";
+
+        #Fetch all backups for database
+        $dbBackups = $fileHeaders | Where-Object {$_.DatabaseName -eq $dbName} | Sort-Object BackupStartDate, BackupFinishDate;
+
+        #Loop through each backup file, and update those additional fields
+        foreach ($file in $dbBackups)
+        {
+            # if current file is Full Backup
+            if ($file.BackupTypeDescription -eq 'Database' -and $file.IsValidForPointInTimeRecovery) 
+            {
+                # Diff.DatabaseBackupLSN = Full.CheckpointLSN
+                $NextDiffBackupFile = $dbBackups | Where-Object {$_.BackupTypeDescription -eq 'Differential database' -and $_.DatabaseBackupLSN -eq $file.CheckpointLSN} | Sort-Object BackupStartDate -Descending | Select-Object -ExpandProperty BackupFile -First 1;
+                if ($NextDiffBackupFile -eq $null) {
+                    Write-Verbose "      No applicable Differential backups found.";
+                } else {
+                    Write-Verbose "      `$NextDiffBackupFile = $NextDiffBackupFile";
+                }
+                
+                # Full.LastLSN + 1 between TLog.FirstLSN and TLog.LastLSN
+                $FullLastLSN = $file.LastLSN + 1;
+                $NextTLogBackupFile = $dbBackups | Where-Object {$_.BackupTypeDescription -eq 'Log' -and ( $FullLastLSN -ge $_.FirstLSN -and $FullLastLSN -le $_.LastLSN )} | Select-Object -ExpandProperty BackupFile;
+                if ($NextTLogBackupFile -eq $null) {
+                    Write-Verbose "      No applicable Transaction log backups found.";
+                }
+            }
+
+            # if current file is Diff Backup
+            if ($file.BackupTypeDescription -eq 'Differential database') 
+            {
+                # Full.LastLSN + 1 between TLog.FirstLSN and TLog.LastLSN
+                $DiffLastLSN = $file.LastLSN + 1;
+                $NextTLogBackupFile = $dbBackups | Where-Object {$_.BackupTypeDescription -eq 'Log' -and ( $DiffLastLSN -ge $_.FirstLSN -and $DiffLastLSN -le $_.LastLSN )} | Select-Object -ExpandProperty BackupFile;
+                if ($NextTLogBackupFile -eq $null) {
+                    Write-Verbose "      No applicable Transaction log backups found.";
+                }
+            }
+
+            if ([String]::IsNullOrEmpty($NextDiffBackupFile) -eq $false) {
+                $file.NextDiffBackupFile = $NextDiffBackupFile;
+                $file.NextTLogBackupFile = $NextDiffBackupFile;
+            }
+
+            if ([String]::IsNullOrEmpty($NextTLogBackupFile) -eq $false) {
+                $file.NextTLogBackupFile = $NextTLogBackupFile;
+                $file.NextTLogBackupFile = $NextTLogBackupFile;
+            }
+        }
     }
 
     Write-Verbose "Checking if specific source databases are provided";
@@ -284,8 +552,6 @@
         $fileHeaders = $fileHeaders | Sort-Object DatabaseName, BackupStartDate;
     }
 
-    #Write-Output $fileHeaders;
-
     $latestBackups = @();
     $latestBackups_Full = @();
     $latestBackups_Diff = @();
@@ -300,11 +566,9 @@
         $fullBackupHeader = $null; # reset variable value
 
         # Get Full Backup details
-        $lastestFullBackupDate = ($fileHeaders | Where-Object {$dbName -contains $_.DatabaseName -and $_.BackupTypeDescription -eq 'Database'} | Measure-Object -Property BackupStartDate -Maximum).Maximum;
-        $fullBackupHeader = ($fileHeaders | Where-Object {$dbName -contains $_.DatabaseName -and $_.BackupTypeDescription -eq 'Database' -and $_.BackupStartDate -eq $lastestFullBackupDate});
+        $lastestFullBackupDate = ($fileHeaders | Where-Object {$dbName -eq $_.DatabaseName -and $_.BackupTypeDescription -eq 'Database'} | Measure-Object -Property BackupStartDate -Maximum).Maximum;
+        $fullBackupHeader = ($fileHeaders | Where-Object {$dbName -eq $_.DatabaseName -and $_.BackupTypeDescription -eq 'Database' -and $_.BackupStartDate -eq $lastestFullBackupDate});
         $latestBackups_Full += $fullBackupHeader;
-
-        #Write-Verbose "Latest full backup for database [$dbName] is of '$($lastestFullBackupDate.ToString())'";
 
         if ($fullBackupHeader.IsCopyOnly -eq 1)
         {
@@ -315,8 +579,8 @@
             # Get Diff Backup details on top of Full Backup
             if ($lastestFullBackupDate -ne $null) 
             {
-                $lastestDiffBackupDate = ($fileHeaders | Where-Object {$dbName -contains $_.DatabaseName -and $_.BackupTypeDescription -eq 'DATABASE DIFFERENTIAL' -and $_.BackupStartDate -ge $lastestFullBackupDate} | Measure-Object -Property BackupStartDate -Maximum).Maximum;
-                $latestBackups_Diff += ($fileHeaders | Where-Object {$dbName -contains $_.DatabaseName -and $_.BackupTypeDescription -eq 'DATABASE DIFFERENTIAL' -and $_.BackupStartDate -eq $lastestDiffBackupDate});
+                $lastestDiffBackupDate = ($fileHeaders | Where-Object {$dbName -eq $_.DatabaseName -and $_.BackupTypeDescription -eq 'DATABASE DIFFERENTIAL' -and $_.BackupStartDate -ge $lastestFullBackupDate} | Measure-Object -Property BackupStartDate -Maximum).Maximum;
+                $latestBackups_Diff += ($fileHeaders | Where-Object {$dbName -eq $_.DatabaseName -and $_.BackupTypeDescription -eq 'DATABASE DIFFERENTIAL' -and $_.BackupStartDate -eq $lastestDiffBackupDate});
             }
 
             if ($fullBackupHeader.RecoveryModel -ne 'SIMPLE')
@@ -329,10 +593,10 @@
                 # Get TLog Backup details on top of Differential Backup
                 if ($lastestDiffBackupDate -ne $null) 
                 {
-                    $latestBackups_TLog += ($fileHeaders | Where-Object {$dbName -contains $_.DatabaseName -and $_.BackupTypeDescription -eq 'TRANSACTION LOG' -and $_.BackupStartDate -ge $lastestDiffBackupDate});
+                    $latestBackups_TLog += ($fileHeaders | Where-Object {$dbName -eq $_.DatabaseName -and $_.BackupTypeDescription -eq 'Log' -and $_.BackupStartDate -ge $lastestDiffBackupDate});
                 }
             }
-        }        
+        }
     }
 
     $latestBackups += $latestBackups_Full;
@@ -353,7 +617,7 @@
         };
         Write-Verbose "   Generating RESTORE statement for database [$dbName]";
 
-        $backupFilesForDatabase = $latestBackups | Where-Object {$dbName -contains $_.DatabaseName} | Sort-Object BackupStartDate;
+        $backupFilesForDatabase = $latestBackups | Where-Object {$dbName -eq $_.DatabaseName} | Sort-Object BackupStartDate;
         $bkpCountsForDB = @($backupFilesForDatabase).Count;
         Write-Verbose "   `$bkpCountsForDB for [$dbName] database is $bkpCountsForDB";
 
@@ -364,9 +628,12 @@
 PRINT '$fileCounter_Total) Restoring database [$dbName_New]'
 
 "@;
+        
         foreach ($file in $backupFilesForDatabase)
         {
             $tsql4Database += @"
+
+
     PRINT '   File no: $fileCounter_Database'
 RESTORE DATABASE [$dbName_New] FROM DISK ='$($file.BackupFile)'
     WITH 
@@ -417,6 +684,8 @@ RESTORE DATABASE [$dbName_New] FROM DISK ='$($file.BackupFile)'
                 
                 }
             }
+
+            #$tsql4BackupFile += $tsql4MoveCommand;
             
             #if its last backup file to apply
             if ($bkpCountsForDB -eq $fileCounter_Database)
@@ -437,10 +706,11 @@ GO
             }
 
                 $fileCounter_Database += 1;
-                $tsql4Database | Out-File -Append $ResultFile;
         }
 
-            $fileCounter_Total += 1;
+        $tsql4Database | Out-File -Append $ResultFile;
+
+        $fileCounter_Total += 1;
     }
 
     Write-Host "Opening generated script file '$ResultFile' with SSMS.";
@@ -448,6 +718,13 @@ GO
     {
         $Destination_SQLInstance = $InventoryInstance;
     }
-    #ssms.exe $ResultFile -S $Destination_SQLInstance -E;
-    notepad.exe $ResultFile;
+    if (Test-Path $ResultFile)
+    {
+        #ssms.exe $ResultFile -S $Destination_SQLInstance -E;
+        notepad.exe $ResultFile;
+    }
+    else
+    {
+        Write-Host "No valid backup files found for Restore Activity..";
+    }
 }
