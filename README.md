@@ -22,3 +22,12 @@ Can be used for restoring database with new name on Destination SQL Instance.
 For more information on how to use this, kindly [watch below YouTube video](https://youtu.be/v4r2lhIFii4):-
 
 [![Watch this video](GitHub_Images/PlayThumbnail____Script-SQLDatabaseRestore.jpg)](https://youtu.be/v4r2lhIFii4)
+
+## Get-ProcessForDBA
+This function displays ComputerName, ProcessId, ProcessName, Description, StartTime, Threads, Memory(MB), Path, Company, Product for all processes of Server name(s) passed as parameter.
+
+![](GitHub_Images/Get-ProcessForDBA.gif)
+
+For more information on how to use this, kindly [watch below YouTube video](https://youtu.be/bhzc2LO2Pb4):-
+
+[![Watch this video](GitHub_Images/PlayThumbnail____Get-ProcessForDBA.jpg)](https://youtu.be/bhzc2LO2Pb4)
