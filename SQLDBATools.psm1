@@ -27,6 +27,7 @@ Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
 #. $PSScriptRoot\Get-SQLInstance.ps1
 . $PSScriptRoot\Get-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Get-DatabaseBackupInfo_SMO.ps1
+. $PSScriptRoot\Get-VolumeSpaceConsumers.ps1
 . $PSScriptRoot\Out-DataTable.ps1
 . $PSScriptRoot\Script-SQLDatabaseRestore.ps1
 . $PSScriptRoot\Run-CommandMultiThreaded.ps1
