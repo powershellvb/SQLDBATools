@@ -8,6 +8,7 @@
 #Import-Module SQLPS -DisableNameChecking;
 
 # File :Set-EnvironmentVariables.ps1" is present @ C:\Users\adwivedi\OneDrive - TiVo Inc\Tivo-Assignments\Set-EnvironmentVariables.ps1
+# File :Set-EnvironmentVariables.ps1" is also present inside Cmdlets subdirectory with dummy values.
 Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
 . $PSScriptRoot\Cmdlets\Add-ApplicationInfo.ps1
 . $PSScriptRoot\Cmdlets\Add-ServerInfo.ps1
