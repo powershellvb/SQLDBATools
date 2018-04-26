@@ -47,12 +47,13 @@ Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
 . $PSScriptRoot\Cmdlets\Find-KeywordInSQLDBATools.ps1
 . $PSScriptRoot\Cmdlets\Functions_ADOQuery.ps1
 #. $PSScriptRoot\Get-DBFiles.ps1
+. $PSScriptRoot\Cmdlets\Get-PerfMonCounters.ps1
 . $PSScriptRoot\Cmdlets\Get-ProcessForDBA.ps1
+. $PSScriptRoot\Cmdlets\Get-RebootHistory.ps1
 . $PSScriptRoot\Cmdlets\Get-RunningQueries.ps1
 . $PSScriptRoot\Cmdlets\Get-ServerInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-VolumeInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-SQLServices_HashArray.ps1
-. $PSScriptRoot\Cmdlets\Get-PerfMonCounters.ps1
 #. $PSScriptRoot\Get-SQLInstance.ps1
 . $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo_SMO.ps1
