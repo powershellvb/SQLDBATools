@@ -31,3 +31,5 @@ This function displays ComputerName, ProcessId, ProcessName, Description, StartT
 For more information on how to use this, kindly [watch below YouTube video](https://youtu.be/bhzc2LO2Pb4):-
 
 [![Watch this video](GitHub_Images/PlayThumbnail____Get-ProcessForDBA.png)](https://youtu.be/bhzc2LO2Pb4)
+
+![](https://github.com/imajaydwivedi/Images/raw/master/SQLDBATools/Get-ProcessForDBA.gif)
