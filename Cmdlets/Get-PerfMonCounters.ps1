@@ -93,4 +93,3 @@
     # Show the result as Table
     $counterData | Format-Table TimeStamp, Path, InstanceName, CookedValue -AutoSize -Wrap;
 }
-cls

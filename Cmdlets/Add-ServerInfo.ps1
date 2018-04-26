@@ -19,35 +19,57 @@
         [String]$CallServerInfoTSQLProcedure = "Yes"
     )
 
-    if ($ComputerName -eq "")
+    # Switch to validate if Server to be added in Inventory
+    $AddSwitch = $false;
+
+    if ([String]::IsNullOrEmpty($ComputerName) -or (Test-Connection -ComputerName $ComputerName) -eq $false)
     {
-        Write-Error 'Invalid Value for ComputerName parameter';
+        Write-Error 'Either supplied value for ComputerName parameter is invalid, or server is not accessible.';
     }
-    else {
-        
-        try {
-            # http://www.itprotoday.com/microsoft-sql-server/bulk-copy-data-sql-server-powershell
-            $serverInfo = Get-ServerInfo -ComputerName $ComputerName | Select-Object ComputerName, @{l='EnvironmentType';e={$EnvironmentType}}, HostName,IPAddress,Domain,OS,SPVersion,Model,'RAM(MB)',CPU,@{l='CollectionTime';e={(Get-Date).ToString("yyyy-MM-dd HH:mm:ss")}};
-            
-            $serverInfo | ft -AutoSize | Write-Verbose;
-            
-            foreach ($i in $serverInfo)
-            {
-                $ComputerName = $i.ComputerName;
-                $sqlQuery = @"
-select 1 as IsPresent from [$InventoryDatabase].[info].[ServerInfo] where ServerName = '$ComputerName'
---select 1 as IsPresent from [$InventoryDatabase].dbo.Instance where Name = '$ComputerName'
+    else 
+    {
+        Write-Verbose "  Checking if '$ComputerName' is already present in Inventory";
+        $sqlQuery = @"
+select 1 as IsPresent from [$InventoryDatabase].[info].[Server] where ServerName = '$ComputerName'
 "@;
-                $Tables = $null;
-                $Tables = Invoke-Sqlcmd -ServerInstance $InventoryInstance -Query $sqlQuery;
-                if ($Tables -ne $null) {
-                    Write-Host "Server $ComputerName already added in Inventory";
-                    Write-Verbose $sqlQuery;
-                }
-                else {
+        $Tables = $null;
+        try 
+        {
+            $Tables = Invoke-Sqlcmd -ServerInstance $InventoryInstance -Query $sqlQuery -ErrorAction Stop;
+               
+            if ($Tables -ne $null) {
+                Write-Host "Server $ComputerName already present in Inventory" -ForegroundColor Green;
+            } else {
+                $AddSwitch = $true;
+            }
+        }
+        catch 
+        {
+            "Error occurred while running sql $sqlQuery" | Write-Host -ForegroundColor Red;
+            Write-Host ($Error);
+            Write-Host ($ErrorMessage);
+        }
+    }
+
+    # If every condition is valid to add server
+    if ($AddSwitch) 
+    {
+        # http://www.itprotoday.com/microsoft-sql-server/bulk-copy-data-sql-server-powershell
+        Write-Verbose "  Calling Get-ServerInfo -ComputerName $ComputerName";
+        $serverInfo = Get-ServerInfo -ComputerName $ComputerName | Select-Object ComputerName, @{l='EnvironmentType';e={$EnvironmentType}}, HostName,IPAddress,Domain,OS,SPVersion,Model,'RAM(MB)',CPU,@{l='CollectionTime';e={(Get-Date).ToString("yyyy-MM-dd HH:mm:ss")}};
+           
+        if($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) { $serverInfo | ft -AutoSize; }
+            
+        foreach ($i in $serverInfo)
+        {
+            $ComputerName = $i.ComputerName;
+            try 
+            {
+                if ($AddSwitch) 
+                {
                     Write-Host "Adding server $ComputerName to Inventory";
                 
-                    $dtable = $i | Out-DataTable;    
+                    $dtable = $i | Out-DataTable; 
         
                     $cn = new-object System.Data.SqlClient.SqlConnection("Data Source=$InventoryInstance;Integrated Security=SSPI;Initial Catalog=$InventoryDatabase");
                     $cn.Open();
@@ -56,31 +78,39 @@ select 1 as IsPresent from [$InventoryDatabase].[info].[ServerInfo] where Server
                     $bc.DestinationTableName = "Staging.ServerInfo";
                     $bc.WriteToServer($dtable);
                     $cn.Close();
-               }
-            }
 
-            # Populate Main table from Staging
-            $sqlQuery = @"
-EXEC [dbo].[usp_ETL_ServerInfo];
-"@;
-            if ($CallServerInfoTSQLProcedure -eq 'Yes') {
-                Invoke-Sqlcmd -ServerInstance $InventoryInstance -Database $InventoryDatabase] -Query $sqlQuery;
+                    Write-Verbose "Details for server $ComputerName saved in Staging tables";
+                }
             }
-            
-        }
-        catch {
-            $ErrorMessage = $_.Exception.Message;
-            $FailedItem = $_.Exception.ItemName;
+            catch 
+            {
+                "Error occurred while writing ServerInfo into Staging table" | Write-Host -ForegroundColor Red;
+                Write-Host ($Error);
+                Write-Host ($ErrorMessage);
 
-            # Output Error in file
-            @"
-Error occurred while running 
-Add-ServerInfo -ComputerName $ComputerName -Verbose
-$ErrorMessage
+                $ErrorMessage = $_.Exception.Message;
+                $FailedItem = $_.Exception.ItemName;
+
+                # Output Error in file
+                @"
+    Error occurred while running 
+    Add-ServerInfo -ComputerName $ComputerName -Verbose
+    $ErrorMessage
 "@ | Out-Host;
-            Write-Host "Error occurred in while trying to get Add-ServerInfo for server [$ComputerName].";
+                Write-Host "Error occurred in while trying to get Add-ServerInfo for server [$ComputerName].";
+            }
         }
-    }    
+
+        # Populate Main table from Staging
+        $sqlQuery = @"
+    EXEC [dbo].[usp_ETL_ServerInfo];
+"@;
+        if ($CallServerInfoTSQLProcedure -eq 'Yes') 
+        {
+            Invoke-Sqlcmd -ServerInstance $InventoryInstance -Database $InventoryDatabase -Query $sqlQuery;
+            Write-Verbose "Details for server $ComputerName moved from Staging table to main table.";
+        }
+    }
 }
 
 

@@ -1,4 +1,5 @@
-﻿Function Collect-DatabaseBackupInfo {
+﻿Function Collect-DatabaseBackupInfo 
+{
     
     [CmdletBinding()]
     Param (

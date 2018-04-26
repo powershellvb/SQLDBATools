@@ -1,4 +1,4 @@
-﻿Function Discover-SQLInstances 
+﻿Function Discover-SQLInstances
 {
     <#
         .SYNOPSIS
@@ -24,5 +24,5 @@
     #>
 
     $machines = @([System.Data.Sql.SqlDataSourceEnumerator]::Instance.GetDataSources() | Select-Object -ExpandProperty ServerName);
-    $machines;
+    $machines | Write-Output;
 }

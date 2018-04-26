@@ -8,6 +8,8 @@ function Get-ProcessForDBA
       Displays ComputerName, ProcessId, ProcessName, Description, StartTime, Threads, Memory(MB), Path, Company, Product for all processes of Server name(s) passed as parameter.
     .PARAMETER  ComputerName
       List of computer or machine names. This list can be passed either as computer name or through pipeline.
+    .PARAMETER  CPU
+      When this switch is used, then CPU is also provided in resultset.
     .EXAMPLE
       Get-ProcessForDBA -ComputerName $env:COMPUTERNAME | Format-Table -AutoSize;
 
@@ -65,7 +67,10 @@ BAN-2ADWIVEDI-L 6312 Ssms        SQL Server Management Studio               4/20
         [Parameter(ValueFromPipeline=$true,
                    ValueFromPipelineByPropertyName=$true)]
         [Alias('ServerName','MachineName')]
-        [String[]]$ComputerName = $env:COMPUTERNAME
+        [String[]]$ComputerName = $env:COMPUTERNAME,
+
+        [parameter( Mandatory=$false)]
+        [Switch]$CPU = $false
     )
 
     BEGIN 
@@ -77,19 +82,59 @@ BAN-2ADWIVEDI-L 6312 Ssms        SQL Server Management Studio               4/20
 
         foreach ($Comp in $ComputerName)
         {
-
+            Write-Host "Finding Process details for ComputerName: $Comp" -ForegroundColor Green;
+            $processes = Get-Process -ComputerName $Comp;
+            # If -Verbose switch is used
+            if($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) { $processes | Select-Object * | Out-GridView; }
             # Get Process Names
-            $processNames = @(Get-Process -ComputerName $Comp | Select-Object Name -Unique | Select-Object -ExpandProperty Name);
+            $processNames = @($processes | Select-Object Name -Unique | Select-Object -ExpandProperty Name);
+            # To match the CPU usage to for example Process Explorer you need to divide by the number of cores
+            $cpu_cores = (Get-WMIObject Win32_ComputerSystem -ComputerName $Comp).NumberOfLogicalProcessors;
+            if($CPU) {
+                $Counters = (Get-Counter "\Process(*)\ID Process" -ComputerName $Comp -ErrorAction SilentlyContinue).CounterSamples;
+                # If -Verbose switch is used
+                if($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) { $Counters | ft -AutoSize; }
+            }
 
             foreach($proc in $processNames)
             {
-                Write-Verbose "Finding details of process '$proc'";
+                Write-Verbose "
+            Finding details of process '$proc'";
                 # Get Process Details
-                $p = Get-Process -Name $proc | Select-Object MachineName, Id, ProcessName, Description, StartTime, Threads, WorkingSet, CPU, Path, Company, Product -First 1;
-                # Get Sum of Memory for Process
-                $processMemoryMB = (Get-Process -Name $proc | Measure-Object WorkingSet -Sum).Sum/1MB;
+                $p = $processes | Where-Object {$_.Name -eq $proc} | Select-Object MachineName, Id, ProcessName, Description, StartTime, Threads, @{l='WS';e={if([String]::IsNullOrEmpty($_.WorkingSet64)) {$_.WorkingSet}else{$_.WorkingSet64}}}, @{l='VM';e={if([String]::IsNullOrEmpty($_.VirtualMemorySize64)){$_.VirtualMemorySize}else{$_.VirtualMemorySize64}}}, CPU, Path, Company, Product -First 1;
+                # Get Sum of Workingset Memory for Process
+                $processMemoryMB = ($processes | Where-Object {$_.Name -eq $proc} | Measure-Object WS -Sum).Sum/1MB;
+                # Get Sum of Virtual Memory for Process
+                $virtualMemoryMB = ($processes | Where-Object {$_.Name -eq $proc} | Measure-Object VM -Sum).Sum/1MB;
                 #Write-Verbose "`$processMemory = $processMemory";
                 $MachineName = if($p.MachineName -eq '.'){$Comp}else{$p.MachineName};
+
+                $cpuPercentage = 0;
+                $pIds = @($processes | Where-Object {$_.Name -eq $proc} | Select-Object -ExpandProperty Id);
+                Write-Verbose "    Process Ids for process '$proc' are $($pIds -join ',')";
+                if($CPU -and $pIds.Count -ne 0) 
+                {
+                    Write-Verbose "  Calculating CPU(%) for process $proc";
+                    foreach ($proc_pid in $pIds)
+                    {
+                        # This is to find the exact counter path, as you might have multiple processes with the same name
+                        $proc_path = ($Counters | Where-Object {$_.RawValue -eq $proc_pid}).Path;
+                        # We now get the CPU percentage
+                        if ([String]::IsNullOrEmpty($proc_path) -eq $false) 
+                        {
+                            $prod_percentage_cpu = [Math]::Round(((Get-Counter ($proc_path -replace "\\id process$","\% Processor Time")).CounterSamples.CookedValue) / $cpu_cores);
+                            $cpuPercentage += $prod_percentage_cpu;
+                        } else 
+                        {
+                            Write-Verbose "    Counter for `$proc_pid = $proc_pid is not found";
+                        }
+                    }
+                }
+
+                if ([String]::IsNullOrEmpty($cpuPercentage)) {
+                    Write-Verbose "No CPU utilization found for process $proc.";
+                    $cpuPercentage = 0;
+                }
 
                 $prop = [Ordered]@{
                             'ComputerName'= $MachineName;
@@ -99,6 +144,9 @@ BAN-2ADWIVEDI-L 6312 Ssms        SQL Server Management Studio               4/20
                             'StartTime' = $p.StartTime;
                             'Threads' = $p.Threads;
                             'Memory(MB)' = $processMemoryMB;
+                            'VirtualMemory(MB)' = [bigint]$virtualMemoryMB;
+                            'VirtualMemory(GB)' = [bigint]$virtualMemoryMB/1024;
+                            'CPU(%)' = [int]$cpuPercentage;
                             'Path' = $p.Path;
                             'Company' = $p.Company;
                             'Product' = $p.Product;
@@ -110,6 +158,10 @@ BAN-2ADWIVEDI-L 6312 Ssms        SQL Server Management Studio               4/20
     }
     END 
     {
-        $processDetails | Sort-Object -Property 'Memory(MB)' -Descending | Write-Output;
+        if ($CPU) {
+            $processDetails | Sort-Object -Property 'Memory(MB)' -Descending | Select-Object ComputerName,Id,ProcessName,Description,StartTime,Threads,'Memory(MB)','VirtualMemory(MB)','VirtualMemory(GB)','CPU(%)',Path,Company,Product | Write-Output;
+        } else {
+            $processDetails | Sort-Object -Property 'Memory(MB)' -Descending | Select-Object ComputerName,Id,ProcessName,Description,StartTime,Threads,'Memory(MB)','VirtualMemory(MB)','VirtualMemory(GB)',Path,Company,Product | Write-Output;
+        }
     }
 }
