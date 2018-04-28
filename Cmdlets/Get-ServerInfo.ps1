@@ -58,13 +58,21 @@ Server02      Microsoft Windows Server 2008 R2 Enterprise  Service Pack 1 3/22/2
             $os = Get-WmiObject -Class win32_operatingsystem -ComputerName $comp -ErrorAction SilentlyContinue;
             $cs = Get-WmiObject -Class win32_computersystem -ComputerName $comp -ErrorAction SilentlyContinue;
             #$bt = (Get-CimInstance -ClassName win32_operatingsystem  -ComputerName $comp -ErrorAction SilentlyContinue | select lastbootuptime);
-        
+            
+            #IsVM, Manufacturer, Model
+            $mType = Get-MachineType -ComputerName $Comp;
+            if($mType.Type -eq 'Physical'){$IsVm = 0}else{$IsVm = 1};
+            $Manufacturer = $mType.Manufacturer;
+
             if ($os.LastBootUpTime) 
             {
                 $upTime = (Get-Date) - $os.ConvertToDateTime($os.LastBootUpTime);
                 $lastBoot = $os.ConvertToDateTime($os.LastBootUpTime);
             }
 
+            $fqn = (Get-FullQualifiedDomainName -ComputerName $Comp);
+
+            <#
             $IPAddresses = [String]'';
             [System.Net.Dns]::GetHostAddresses($Comp) | `
                 foreach `
@@ -73,23 +81,22 @@ Server02      Microsoft Windows Server 2008 R2 Enterprise  Service Pack 1 3/22/2
                     {
                         $IPAddresses = $_.IPAddressToString
                     }
-                    <#
-                    else
-                    {
-                        $IPAddresses = $IPAddresses+';'+$_.IPAddressToString
-                    }
-                    #>
                 };
+            #>
+            $ping = New-Object System.Net.NetworkInformation.Ping;
+            $ips = $($ping.Send("$Comp").Address).IPAddressToString;
 
             $props = [Ordered]@{ 'ComputerName'=$comp;
+                        'FQN' = $fqn;
                         'HostName'=$cs.Name;
-                        'IPAddress'= $IPAddresses;
+                        'IPAddress'= $ips;
                         'Domain'=$cs.Domain;
                         'OS'=$os.Caption;
                         'SPVersion'=$os.CSDVersion;
                         'LastBootTime'=$lastBoot;
                         'UpTime'= [String]$uptime.Days + " Days " + $uptime.Hours + " Hours " + $uptime.Minutes + " Minutes" ;
-                        #'Mfgr'=$cs.manufacturer;
+                        'IsVM' = $IsVm;
+                        'Manufacturer' = $Manufacturer;
                         'Model'=$cs.Model;
                         'RAM(MB)'=$cs.totalphysicalmemory/1MB -AS [int];
                         'CPU'=$cs.NumberOfLogicalProcessors;
@@ -101,6 +108,13 @@ Server02      Microsoft Windows Server 2008 R2 Enterprise  Service Pack 1 3/22/2
             # Check if the $ComputerName is virtual Name
             if ($Comp -ne $cs.Name)
             {
+                $fqn = (Get-FullQualifiedDomainName -ComputerName $Comp);
+                #IsVM, Manufacturer, Model
+                $mType = Get-MachineType -ComputerName $Comp;
+                if($mType.Type -eq 'Physical'){$IsVm = 0}else{$IsVm = 1};
+                $Manufacturer = $mType.Manufacturer;
+
+                <#
                 $IPAddresses = [String]'';
                 [System.Net.Dns]::GetHostAddresses($Comp) | `
                     foreach `
@@ -113,19 +127,23 @@ Server02      Microsoft Windows Server 2008 R2 Enterprise  Service Pack 1 3/22/2
                         else
                         {
                             $IPAddresses = $IPAddresses+';'+$_.IPAddressToString
-                        }
-                        #>
+                        }                        
                     };
+                #>
+                $ping = New-Object System.Net.NetworkInformation.Ping;
+                $ips = $($ping.Send("$Comp").Address).IPAddressToString;
 
                 $props = [Ordered]@{ 'ComputerName'=$cs.Name;
+                                    'FQN' = $fqn;
                                     'HostName'=$cs.Name;
-                                    'IPAddress'= $IPAddresses;
+                                    'IPAddress'= $ips;
                                     'Domain'=$cs.Domain;
                                     'OS'=$os.Caption;
                                     'SPVersion'=$os.CSDVersion;
                                     'LastBootTime'=$lastBoot;
                                     'UpTime'= [String]$uptime.Days + " Days " + $uptime.Hours + " Hours " + $uptime.Minutes + " Minutes" ;
-                                    #'Mfgr'=$cs.manufacturer;
+                                    'IsVM' = $IsVm;
+                                    'Manufacturer' = $Manufacturer;
                                     'Model'=$cs.Model;
                                     'RAM(MB)'=$cs.totalphysicalmemory/1MB -AS [int];
                                     'CPU'=$cs.NumberOfLogicalProcessors;

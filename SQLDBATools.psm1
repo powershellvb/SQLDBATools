@@ -37,8 +37,11 @@ else
 # File :Set-EnvironmentVariables.ps1" is present @ C:\Users\adwivedi\OneDrive - TiVo Inc\Tivo-Assignments\Set-EnvironmentVariables.ps1
 # File :Set-EnvironmentVariables.ps1" is also present inside Cmdlets subdirectory with dummy values.
 Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
+Import-Module -Name $PSScriptRoot\Cmdlets\Get-SqlServerProductKeys.psm1
+
 . $PSScriptRoot\Cmdlets\Add-ApplicationInfo.ps1
 . $PSScriptRoot\Cmdlets\Add-ServerInfo.ps1
+. $PSScriptRoot\Cmdlets\Add-SqlInstanceInfo.ps1
 . $PSScriptRoot\Cmdlets\Collect-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Cmdlets\Collect-VolumeInfo.ps1
 . $PSScriptRoot\Cmdlets\Discover-SQLInstances.ps1
@@ -47,16 +50,18 @@ Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
 . $PSScriptRoot\Cmdlets\Find-KeywordInSQLDBATools.ps1
 . $PSScriptRoot\Cmdlets\Functions_ADOQuery.ps1
 #. $PSScriptRoot\Get-DBFiles.ps1
+. $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo.ps1
+. $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo_SMO.ps1
+. $PSScriptRoot\Cmdlets\Get-FullQualifiedDomainName.ps1
+. $PSScriptRoot\Cmdlets\Get-MachineType.ps1
 . $PSScriptRoot\Cmdlets\Get-PerfMonCounters.ps1
 . $PSScriptRoot\Cmdlets\Get-ProcessForDBA.ps1
 . $PSScriptRoot\Cmdlets\Get-RebootHistory.ps1
 . $PSScriptRoot\Cmdlets\Get-RunningQueries.ps1
 . $PSScriptRoot\Cmdlets\Get-ServerInfo.ps1
+. $PSScriptRoot\Cmdlets\Get-SQLInstanceInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-VolumeInfo.ps1
-. $PSScriptRoot\Cmdlets\Get-SQLServices_HashArray.ps1
 #. $PSScriptRoot\Get-SQLInstance.ps1
-. $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo.ps1
-. $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo_SMO.ps1
 . $PSScriptRoot\Cmdlets\Get-VolumeSpaceConsumers.ps1
 . $PSScriptRoot\Cmdlets\Out-DataTable.ps1
 . $PSScriptRoot\Cmdlets\Script-SQLDatabaseRestore.ps1

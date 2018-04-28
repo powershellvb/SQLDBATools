@@ -16,7 +16,10 @@
 
         [parameter(HelpMessage="Choose 'No' when adding multiple servers at same time")]
         [ValidateSet("Yes","No")]
-        [String]$CallServerInfoTSQLProcedure = "Yes"
+        [String]$CallTSQLProcedure = "Yes",
+
+        [parameter( Mandatory=$false)]
+        [Switch]$AddSqlInstanceInfo = $false
     )
 
     # Switch to validate if Server to be added in Inventory
@@ -52,11 +55,12 @@ select 1 as IsPresent from [$InventoryDatabase].[info].[Server] where ServerName
     }
 
     # If every condition is valid to add server
+    $AddSwitch = $true;
     if ($AddSwitch) 
     {
         # http://www.itprotoday.com/microsoft-sql-server/bulk-copy-data-sql-server-powershell
         Write-Verbose "  Calling Get-ServerInfo -ComputerName $ComputerName";
-        $serverInfo = Get-ServerInfo -ComputerName $ComputerName | Select-Object ComputerName, @{l='EnvironmentType';e={$EnvironmentType}}, HostName,IPAddress,Domain,OS,SPVersion,Model,'RAM(MB)',CPU,@{l='CollectionTime';e={(Get-Date).ToString("yyyy-MM-dd HH:mm:ss")}};
+        $serverInfo = Get-ServerInfo -ComputerName $ComputerName | Select-Object ComputerName, @{l='EnvironmentType';e={$EnvironmentType}}, FQN, HostName,IPAddress,Domain,OS,SPVersion,IsVM,Manufacturer,Model,'RAM(MB)',CPU,@{l='CollectionTime';e={(Get-Date).ToString("yyyy-MM-dd HH:mm:ss")}};
            
         if($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) { $serverInfo | ft -AutoSize; }
             
@@ -69,7 +73,13 @@ select 1 as IsPresent from [$InventoryDatabase].[info].[Server] where ServerName
                 {
                     Write-Host "Adding server $ComputerName to Inventory";
                 
-                    $dtable = $i | Out-DataTable; 
+                    $dtable = $i | Out-DataTable;
+                    
+                    if($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent)
+                    {
+                        Write-Host "VERBOSE: Showing data from `$dtable : " -ForegroundColor Yellow;
+                        $dtable | fl;
+                    } 
         
                     $cn = new-object System.Data.SqlClient.SqlConnection("Data Source=$InventoryInstance;Integrated Security=SSPI;Initial Catalog=$InventoryDatabase");
                     $cn.Open();
@@ -103,13 +113,19 @@ select 1 as IsPresent from [$InventoryDatabase].[info].[Server] where ServerName
 
         # Populate Main table from Staging
         $sqlQuery = @"
-    EXEC [dbo].[usp_ETL_ServerInfo];
+    EXEC [Staging].[usp_ETL_ServerInfo];
 "@;
-        if ($CallServerInfoTSQLProcedure -eq 'Yes') 
+        if ($CallTSQLProcedure -eq 'Yes') 
         {
             Invoke-Sqlcmd -ServerInstance $InventoryInstance -Database $InventoryDatabase -Query $sqlQuery;
             Write-Verbose "Details for server $ComputerName moved from Staging table to main table.";
         }
+    }
+
+    # Add SQL Instances
+    if($AddSqlInstanceInfo)
+    {
+        Add-SqlInstanceInfo -ComputerName $ComputerName -CallTSQLProcedure Yes;
     }
 }
 

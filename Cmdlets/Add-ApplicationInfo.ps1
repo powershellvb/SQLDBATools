@@ -46,4 +46,12 @@
     )
 
     Write-Host $ApplicationName;
+
+    Import-Module ActiveDirectory
+$user = Get-ADUser -Identity adwivedi
+$user | Select-Object Enabled, Name, ObjectClass, SamAccountName, UserPrincipalName, Surname
+$userInfo = Get-ADUser -Identity adwivedi -Properties *;
+$userInfo | Select-Object DisplayName, Description, EmailAddress, OfficePhone
+
+Get-ADUser -Filter {EmailAddress -eq 'ajay.dwivedi@tivo.com'}
 }
