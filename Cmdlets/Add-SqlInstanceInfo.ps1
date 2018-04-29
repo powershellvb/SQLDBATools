@@ -18,16 +18,29 @@
     # Switch to validate if Server to be added in Inventory
     $AddSwitch = $false;
 
-    if ([String]::IsNullOrEmpty($ComputerName) -or (Test-Connection -ComputerName $ComputerName) -eq $false)
+    if ([String]::IsNullOrEmpty($ComputerName) -or (Test-Connection -ComputerName $ComputerName -Count 1 -Quiet) -eq $false)
     {
-        Write-Error 'Either supplied value for ComputerName parameter is invalid, or server is not accessible.';
+        $MessageText = "Supplied value '$ComputerName' for ComputerName parameter is invalid, or server is not accessible.";
+        Write-Host $MessageText -ForegroundColor Red;
+        Add-CollectionError -ComputerName $ComputerName -Cmdlet 'Add-SqlInstanceInfo' -CommandText "Add-SqlInstanceInfo -ComputerName '$ComputerName'" -ErrorText $MessageText -Remark $null;
+        
+        return;
     }
     else 
     {
         # collect sql instance information
         Write-Verbose "Finding all instances on '$ComputerName' server";
-        $sqlInfo = Get-SQLInstanceInfo -ComputerName $ComputerName;
-        $instNames = $sqlInfo | Select-Object -ExpandProperty InstanceName;
+        $sqlInfo = Get-SQLInstanceInfo -ComputerName $ComputerName -LogErrorInInventory;
+        $instNames = @($sqlInfo | Select-Object -ExpandProperty InstanceName);
+
+        if($instNames.Count -eq 0)
+        {
+            $MessageText = "Get-SQLInstanceInfo -ComputerName '$ComputerName'   did not work.";
+            Write-Host $MessageText -ForegroundColor Red;
+            Add-CollectionError -ComputerName $ComputerName -Cmdlet 'Add-SqlInstanceInfo' -CommandText "Get-SQLInstanceInfo -ComputerName '$ComputerName'" -ErrorText $MessageText -Remark $null;
+            return;
+        }
+
         $sqlInstances = @();
 
         #loop through each instance

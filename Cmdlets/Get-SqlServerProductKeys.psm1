@@ -54,7 +54,8 @@ Function Get-SqlServerProductKeys {
 		
 	BEGIN {
 
-		Function Unlock-SQLServerKey {
+		Function Unlock-SQLServerKey 
+        {
 			param(
 				[Parameter(Mandatory = $true)]
 				[byte[]]$data,

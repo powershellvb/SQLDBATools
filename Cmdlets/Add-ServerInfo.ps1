@@ -19,21 +19,28 @@
         [String]$CallTSQLProcedure = "Yes",
 
         [parameter( Mandatory=$false)]
-        [Switch]$AddSqlInstanceInfo = $false
+        [Switch]$AddSqlInstanceInfo = $false,
+
+        [Parameter(Mandatory=$false)]
+        [Alias('Description','Remark')]
+        $GeneralDescription
     )
 
     # Switch to validate if Server to be added in Inventory
     $AddSwitch = $false;
 
-    if ([String]::IsNullOrEmpty($ComputerName) -or (Test-Connection -ComputerName $ComputerName) -eq $false)
+    if ([String]::IsNullOrEmpty($ComputerName) -or (Test-Connection -ComputerName $ComputerName -Count 1 -Quiet) -eq $false)
     {
-        Write-Error 'Either supplied value for ComputerName parameter is invalid, or server is not accessible.';
+        Write-Host "Supplied value of '$ComputerName' for ComputerName parameter is invalid, or server is not accessible." -ForegroundColor Red;
+        Add-CollectionError -ComputerName $ComputerName -Cmdlet 'Add-ServerInfo' -CommandText "Add-ServerInfo -ComputerName '$ComputerName'" -ErrorText "Supplied value of '$ComputerName' for ComputerName parameter is invalid, or server is not accessible." -Remark $null;
+        return;
     }
     else 
     {
+        $ComputerName = (Get-FullQualifiedDomainName -ComputerName $ComputerName);
         Write-Verbose "  Checking if '$ComputerName' is already present in Inventory";
         $sqlQuery = @"
-select 1 as IsPresent from [$InventoryDatabase].[info].[Server] where ServerName = '$ComputerName'
+select 1 as IsPresent from [$InventoryDatabase].[info].[Server] where FQDN = '$ComputerName'
 "@;
         $Tables = $null;
         try 
@@ -42,6 +49,7 @@ select 1 as IsPresent from [$InventoryDatabase].[info].[Server] where ServerName
                
             if ($Tables -ne $null) {
                 Write-Host "Server $ComputerName already present in Inventory" -ForegroundColor Green;
+                return;
             } else {
                 $AddSwitch = $true;
             }
@@ -60,13 +68,23 @@ select 1 as IsPresent from [$InventoryDatabase].[info].[Server] where ServerName
     {
         # http://www.itprotoday.com/microsoft-sql-server/bulk-copy-data-sql-server-powershell
         Write-Verbose "  Calling Get-ServerInfo -ComputerName $ComputerName";
-        $serverInfo = Get-ServerInfo -ComputerName $ComputerName | Select-Object ComputerName, @{l='EnvironmentType';e={$EnvironmentType}}, FQN, HostName,IPAddress,Domain,OS,SPVersion,IsVM,Manufacturer,Model,'RAM(MB)',CPU,@{l='CollectionTime';e={(Get-Date).ToString("yyyy-MM-dd HH:mm:ss")}};
-           
+        $serverInfo = Get-ServerInfo -ComputerName $ComputerName | 
+            Select-Object ComputerName, @{l='EnvironmentType';e={$EnvironmentType}}, FQN, HostName,IPAddress,Domain,OS,SPVersion,IsVM,Manufacturer,Model,
+                            'RAM(MB)',CPU, @{l='GeneralDescription';e={[String]$GeneralDescription}}, @{l='CollectionTime';e={(Get-Date).ToString("yyyy-MM-dd HH:mm:ss")}};
+
         if($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) { $serverInfo | ft -AutoSize; }
+        if([String]::IsNullOrEmpty($serverInfo.IPAddress)) 
+        {
+            $MessageText = "Get-WmiObject : Access is denied. Failed in execution of Get-ServerInfo";
+            Write-Host $MessageText -ForegroundColor Red;
+            Add-CollectionError -ComputerName $ComputerName -Cmdlet 'Add-ServerInfo' -CommandText "Add-ServerInfo -ComputerName '$ComputerName'" -ErrorText $MessageText -Remark $null;
+            return;
+        }
             
         foreach ($i in $serverInfo)
         {
             $ComputerName = $i.ComputerName;
+            
             try 
             {
                 if ($AddSwitch) 

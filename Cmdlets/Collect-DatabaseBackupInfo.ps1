@@ -1,4 +1,4 @@
-﻿Function Collect-DatabaseBackupInfo 
+﻿Function Collect-DatabaseBackupInfo
 {
     
     [CmdletBinding()]
@@ -20,6 +20,7 @@
         # Making entry into General Logs File
         #"$SQLInstance " | Out-File -Append $ExecutionLogsFile;
 
+        $ComputerName = $SQLInstance.Split('\')[0];
         $errorFile = "$SQLDBATools_ResultsDirectory\Logs\Get-DatabaseBackupInfo\$($ServerInstance -replace '\\','__').txt";
         Push-Location;
 
@@ -27,6 +28,15 @@
 
             # http://www.itprotoday.com/microsoft-sql-server/bulk-copy-data-sql-server-powershell
             $backupInfo = Get-DatabaseBackupInfo_SMO -SQLInstance $SQLInstance;
+
+            if ($backupInfo -eq $null)
+            {
+                $MessageText = "Get-DatabaseBackupInfo_SMO -SQLInstance '$SQLInstance'   did not work.";
+                Write-Verbose $MessageText;
+                Add-CollectionError -ComputerName $ComputerName -Cmdlet 'Collect-DatabaseBackupInfo' -CommandText "Get-DatabaseBackupInfo_SMO -SQLInstance '$SQLInstance'" -ErrorText $MessageText -Remark $null;
+                return;
+            }
+
             $dtable = $backupInfo | Out-DataTable;    
         
             $cn = new-object System.Data.SqlClient.SqlConnection("Data Source=$InventoryInstance;Integrated Security=SSPI;Initial Catalog=$InventoryDatabase");

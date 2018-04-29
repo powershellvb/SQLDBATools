@@ -15,7 +15,8 @@
     {
         Write-Error 'Invalid Value for ComputerName parameter';
     }
-    else {
+    else 
+    {
         
         # Making entry into General Logs File
         #"$ComputerName " | Out-File -Append $ExecutionLogsFile;
@@ -27,6 +28,15 @@
 
             # http://www.itprotoday.com/microsoft-sql-server/bulk-copy-data-sql-server-powershell
             $diskInfo = Get-VolumeInfo -ComputerName $ComputerName;
+
+            if ($diskInfo -eq $null)
+            {
+                $MessageText = "Get-VolumeInfo -ComputerName '$ComputerName'   did not work.";
+                Write-Verbose $MessageText;
+                Add-CollectionError -ComputerName $ComputerName -Cmdlet 'Collect-VolumeInfo' -CommandText "Get-VolumeInfo -ComputerName '$ComputerName'" -ErrorText $MessageText -Remark $null;
+                return;
+            }
+
             $diskInfo = $diskInfo | Select-Object *, @{l='CollectionTime';e={(Get-Date).ToString("yyyy-MM-dd HH:mm:ss")}};
             $dtable = $diskInfo | Out-DataTable;    
         
