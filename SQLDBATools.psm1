@@ -14,7 +14,7 @@ if ( (Get-Module -ListAvailable -Name SqlServer) -ne $null )
     {
         Write-Host "====================================================";
         Write-Host "'SqlServer' Module is being loaded.." -ForegroundColor Yellow;
-        Import-Module SqlServer;
+        try {Import-Module SqlServer -ErrorAction SilentlyContinue;} catch {Write-Host "Module SqlServer already loaded..";}
         Write-Host "====================================================";
         Write-Host "'SqlServer' Module is loaded with SQLDBATools.." -ForegroundColor Green;
     }
@@ -26,6 +26,7 @@ if([String]::IsNullOrEmpty($sqlProvider.Name))
 {
     Write-Host "====================================================";
     Write-Host "'SqlServer' PSProvider not found. Trying to load it with '$PSScriptRoot\Cmdlets\Load-SmoAndSqlProvider.ps1'" -ForegroundColor Yellow;
+
     Invoke-Expression -Command "$PSScriptRoot\Cmdlets\Load-SmoAndSqlProvider.ps1";
 
     # Check is SQL PSProvider is loaded now?
@@ -44,14 +45,13 @@ if([String]::IsNullOrEmpty($sqlProvider.Name))
 if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }) -eq $null ) 
 {
     Write-Host "====================================================";
-    Write-Host "'ActiveDirectory' module is not installed." -ForegroundColor Red;
-    Write-Host "Few functions like 'Add-ApplicationInfo' might not work with this module." -ForegroundColor Red;
+    Write-Host "'ActiveDirectory' module is not installed." -ForegroundColor DarkRed;
     @"
-Kindly execute below Cmdlets to import ActiveDirectory.
+** So, few functions like 'Add-ApplicationInfo' might not work with this module. Kindly execute below Cmdlets to import ActiveDirectory.
 
-Install-Module ServerManager -Force;
-Add-WindowsFeature RSAT-AD-PowerShell;
-Install-Module ActiveDirectory -Force;
+    Install-Module ServerManager -Force;
+    Add-WindowsFeature RSAT-AD-PowerShell;
+    Install-Module ActiveDirectory -Force;
 
 "@ | Write-Host -ForegroundColor Yellow;
 }
@@ -76,6 +76,7 @@ Write-Host "Loading other Functions.." -ForegroundColor Yellow;
 . $PSScriptRoot\Cmdlets\Discover-SQLInstances.ps1
 . $PSScriptRoot\Cmdlets\Execute-SqlQuery.ps1
 . $PSScriptRoot\Cmdlets\Export-Password.ps1
+. $PSScriptRoot\Cmdlets\Fetch-ServerInfo.ps1
 . $PSScriptRoot\Cmdlets\Find-KeywordInSQLDBATools.ps1
 . $PSScriptRoot\Cmdlets\Functions_ADOQuery.ps1
 #. $PSScriptRoot\Get-DBFiles.ps1
@@ -97,6 +98,7 @@ Write-Host "Loading other Functions.." -ForegroundColor Yellow;
 . $PSScriptRoot\Cmdlets\Run-CommandMultiThreaded.ps1
 . $PSScriptRoot\Cmdlets\Run-sp_WhoIsActive.ps1
 . $PSScriptRoot\Cmdlets\Send-SQLMail.ps1
+. $PSScriptRoot\Cmdlets\Set-TivoMailProfile.ps1
 
 Push-Location;
 
