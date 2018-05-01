@@ -31,3 +31,8 @@ This function displays ComputerName, ProcessId, ProcessName, Description, StartT
 For more information on how to use this, kindly [watch below YouTube video](https://youtu.be/bhzc2LO2Pb4):-
 
 [![Watch this video](https://github.com/imajaydwivedi/Images/raw/master/SQLDBATools/PlayThumbnail____Get-ProcessForDBA.png)](https://youtu.be/bhzc2LO2Pb4)
+
+## Get-VolumeSpaceConsumers
+This function displays all files and folders including hidden items with details like Owner, Size, Created Date, Updated By etc path passed in parameter.
+
+![](https://github.com/imajaydwivedi/Images/raw/master/SQLDBATools/Get-VolumeSpaceConsumers.gif)
