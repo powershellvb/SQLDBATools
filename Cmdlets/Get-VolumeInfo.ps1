@@ -65,15 +65,28 @@ Server02      G:\                 674            483            72           191
         }
         foreach ($Computer in $ComputerName)
         {
-           $diskDrives =  Get-WmiObject -Class win32_volume -ComputerName $Computer -Filter "DriveType=3" | Where-Object {$_.Name -notlike '\\?\*'} |
-            Select-Object -Property @{l='ComputerName';e={$_.PSComputerName}}, 
-                                    @{l='VolumeName';e={$_.Name}}, 
-                                    @{l='Capacity(GB)';e={$_.Capacity / 1GB -AS [INT]}},
-                                    @{l='Used Space(GB)';e={($_.Capacity - $_.FreeSpace)/ 1GB -AS [INT]}},
-                                    @{l='Used Space(%)';e={((($_.Capacity - $_.FreeSpace) / $_.Capacity) * 100) -AS [INT]}},
-                                    @{l='FreeSpace(GB)';e={$_.FreeSpace / 1GB -AS [INT]}},
-                                    Label;
-            foreach ($diskInfo in $diskDrives)
+           $Volumes =  Get-WmiObject -Class win32_volume -ComputerName $ComputerName -Filter "DriveType=3" | Where-Object {$_.Name -notlike '\\?\*'} |                    
+                    Select-Object -Property @{l='ComputerName';e={$_.PSComputerName}}, 
+                                            @{l='VolumeName';e={$_.Name}}, 
+                                            @{l='Capacity(GB)';e={$_.Capacity / 1GB -AS [INT]}},
+                                            @{l='Used Space(GB)';e={($_.Capacity - $_.FreeSpace)/ 1GB -AS [INT]}},
+                                            @{l='Used Space(%)';e={((($_.Capacity - $_.FreeSpace) / $_.Capacity) * 100) -AS [INT]}},
+                                            @{l='FreeSpace(GB)';e={$_.FreeSpace / 1GB -AS [INT]}},
+                                            Label;
+
+            $Disks = @();
+            $Disks = Get-WmiObject -Class win32_DiskDrive -ComputerName $ComputerName | 
+                                Select-Object -Property @{l='DiskID';e={[int32]($_.Index)}},@{l='DiskModel';e={$_.Model}},@{l='LUN';e={$_.SCSILogicalUnit}};
+
+            $Partitions = Get-WmiObject -Class win32_LogicalDiskToPartition -ComputerName $ComputerName | 
+                                Select-Object @{l='DiskID';e={if($_.Antecedent -match "Win32_DiskPartition.DeviceID=`"Disk\s#(?'DiskID'\d{1,3}),\sPartition\s#(?'PartitionNo'\d{1,3})") {$Matches['DiskID']} else {$null} }}, 
+                                              @{l='PartitionNo';e={if($_.Antecedent -match "Win32_DiskPartition.DeviceID=`"Disk\s#(?'DiskID'\d{1,3}),\sPartition\s#(?'PartitionNo'\d{1,3})") {$Matches['PartitionNo']} else {$null} }}, 
+                                              @{l='VolumeName';e={if($_.Dependent -match "Win32_LogicalDisk.DeviceID=`"(?'VolumeName'[a-zA-Z]:)`"") {$Matches['VolumeName']+'\'} else {$null} }}
+                            
+            $VolPart = Join-Object -Left $Volumes -Right $Partitions -LeftJoinProperty VolumeName -RightJoinProperty VolumeName -Type AllInLeft -RightProperties @{l='DiskID';e={[int32]($_.DiskID)}},PartitionNo;
+            $DiskVolumeInfo = Join-Object -Left $VolPart -Right $Disks  -LeftJoinProperty DiskID -RightJoinProperty DiskID -Type AllInLeft -RightProperties LUN, DiskModel
+
+            foreach ($diskInfo in $DiskVolumeInfo)
             {
                 $props = [Ordered]@{ 'ComputerName'=$diskInfo.ComputerName;
                                     'VolumeName'= $diskInfo.VolumeName;
@@ -82,6 +95,9 @@ Server02      G:\                 674            483            72           191
                                     'Used Space(%)'= $diskInfo.'Used Space(%)';
                                     'FreeSpace(GB)'= $diskInfo.'FreeSpace(GB)';
                                     'Label'=$diskInfo.Label;
+                                    'DiskID'=$volumeInfo.DiskID;
+                                    'LUN'=$volumeInfo.LUN;
+                                    'DiskModel'=$volumeInfo.DiskModel;
                                   };
 
                 $obj = New-Object -TypeName psobject -Property $props;

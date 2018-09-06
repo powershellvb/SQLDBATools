@@ -137,6 +137,7 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Get-VolumeSpaceConsumers.ps1
 . $PSScriptRoot\Cmdlets\Get-WhoIsActive.ps1
 . $PSScriptRoot\Cmdlets\Invoke-TsqlScript.ps1
+. $PSScriptRoot\Cmdlets\Join-Object.ps1
 . $PSScriptRoot\Cmdlets\Out-DataTable.ps1
 . $PSScriptRoot\Cmdlets\Reset-OwnerShipToSystemAdministrators.ps1
 . $PSScriptRoot\Cmdlets\Script-SQLDatabaseRestore.ps1
