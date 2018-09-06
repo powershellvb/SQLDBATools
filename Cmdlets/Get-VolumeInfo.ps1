@@ -65,7 +65,12 @@ Server02      G:\                 674            483            72           191
         }
         foreach ($Computer in $ComputerName)
         {
-           $Volumes =  Get-WmiObject -Class win32_volume -ComputerName $ComputerName -Filter "DriveType=3" | Where-Object {$_.Name -notlike '\\?\*'} |                    
+            $Disks = @();
+            $Volumes = @();
+            $Partitions = @();
+            $DiskVolumeInfo = @();
+
+           $Volumes =  Get-WmiObject -Class win32_volume -ComputerName $Computer -Filter "DriveType=3" | Where-Object {$_.Name -notlike '\\?\*'} |                    
                     Select-Object -Property @{l='ComputerName';e={$_.PSComputerName}}, 
                                             @{l='VolumeName';e={$_.Name}}, 
                                             @{l='Capacity(GB)';e={$_.Capacity / 1GB -AS [INT]}},
@@ -74,11 +79,12 @@ Server02      G:\                 674            483            72           191
                                             @{l='FreeSpace(GB)';e={$_.FreeSpace / 1GB -AS [INT]}},
                                             Label;
 
-            $Disks = @();
-            $Disks = Get-WmiObject -Class win32_DiskDrive -ComputerName $ComputerName | 
+            
+
+            $Disks = Get-WmiObject -Class win32_DiskDrive -ComputerName $Computer | 
                                 Select-Object -Property @{l='DiskID';e={[int32]($_.Index)}},@{l='DiskModel';e={$_.Model}},@{l='LUN';e={$_.SCSILogicalUnit}};
 
-            $Partitions = Get-WmiObject -Class win32_LogicalDiskToPartition -ComputerName $ComputerName | 
+            $Partitions = Get-WmiObject -Class win32_LogicalDiskToPartition -ComputerName $Computer | 
                                 Select-Object @{l='DiskID';e={if($_.Antecedent -match "Win32_DiskPartition.DeviceID=`"Disk\s#(?'DiskID'\d{1,3}),\sPartition\s#(?'PartitionNo'\d{1,3})") {$Matches['DiskID']} else {$null} }}, 
                                               @{l='PartitionNo';e={if($_.Antecedent -match "Win32_DiskPartition.DeviceID=`"Disk\s#(?'DiskID'\d{1,3}),\sPartition\s#(?'PartitionNo'\d{1,3})") {$Matches['PartitionNo']} else {$null} }}, 
                                               @{l='VolumeName';e={if($_.Dependent -match "Win32_LogicalDisk.DeviceID=`"(?'VolumeName'[a-zA-Z]:)`"") {$Matches['VolumeName']+'\'} else {$null} }}
@@ -95,9 +101,9 @@ Server02      G:\                 674            483            72           191
                                     'Used Space(%)'= $diskInfo.'Used Space(%)';
                                     'FreeSpace(GB)'= $diskInfo.'FreeSpace(GB)';
                                     'Label'=$diskInfo.Label;
-                                    'DiskID'=$volumeInfo.DiskID;
-                                    'LUN'=$volumeInfo.LUN;
-                                    'DiskModel'=$volumeInfo.DiskModel;
+                                    'DiskID'=$diskInfo.DiskID;
+                                    'LUN'=$diskInfo.LUN;
+                                    'DiskModel'=$diskInfo.DiskModel;
                                   };
 
                 $obj = New-Object -TypeName psobject -Property $props;
