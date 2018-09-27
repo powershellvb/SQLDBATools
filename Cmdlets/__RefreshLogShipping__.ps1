@@ -1,8 +1,8 @@
 ﻿# Get-TivoLogWalkBackupRestore
-$SourceServer = 'tul1cipcnpdb1';
+$SourceServer = 'TUL1CIPCNPDB1';
 $SourceDbName = 'Staging';
-$DestinationServer = 'TUL1CIPXDB19';
-$DestinationDbName = 'Staging2';
+$DestinationServer = 'TUL1CIPXDB18';
+$DestinationDbName = 'StagingFiltered';
 
 if($DestinationDbName -eq $null) {$DestinationDbName = $SourceDbName};
 $commentHeader = if ($SourceDbName -eq $DestinationDbName) {"[$SourceServer]"} else {"[$SourceDbName] => [$DestinationDbName]"};
