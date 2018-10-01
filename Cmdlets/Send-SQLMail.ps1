@@ -19,7 +19,7 @@
 
     # Create credential
     $User = 'sqlagentservice@gmail.com';
-    $File = 'E:\Ajay\Important Documents\Password_4_sqlagentservice.txt'
+    $File = 'C:\AjayDwivedi_Password.txt'
     $MailCredential = New-Object -TypeName System.Management.Automation.PSCredential -ArgumentList $User, (Get-Content $File | ConvertTo-SecureString);
     
     # Create a credential objec we'll use to authenticate ourselves to the SMTP server
