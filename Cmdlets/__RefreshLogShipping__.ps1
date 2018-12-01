@@ -1,8 +1,8 @@
 ﻿# Get-TivoLogWalkBackupRestore
 $SourceServer = 'TUL1CIPCNPDB1';
-$SourceDbName = 'Staging';
-$DestinationServer = 'TUL1CIPXDB18';
-$DestinationDbName = 'StagingFiltered';
+$SourceDbName = 'RGS';
+$DestinationServer = 'TUL1CIPXDB20';
+$DestinationDbName = 'RGS';
 
 if($DestinationDbName -eq $null) {$DestinationDbName = $SourceDbName};
 $commentHeader = if ($SourceDbName -eq $DestinationDbName) {"[$SourceServer]"} else {"[$SourceDbName] => [$DestinationDbName]"};
@@ -56,28 +56,33 @@ GO
 "@;
 
 # Add Differential Backup
-$networkPath = "\\$SourceServer\" + ($($diffBkp.Path) -replace ':\\','$\');
-$sqlText += @"
+if($diffBkp -ne $null)
+{
+    $networkPath = "\\$SourceServer\" + ($($diffBkp.Path) -replace ':\\','$\');
+    
+    $sqlText += @"
 
 
--- $commentHeader - Differential restore of $($diffBkp.TotalSize) total size from backup of '$($diffBkp.Start)'
-RESTORE DATABASE [$DestinationDbName] FROM  DISK = N'$networkPath'
-    WITH NORECOVERY
-         ,STATS = 5
-GO
+    -- $commentHeader - Differential restore of $($diffBkp.TotalSize) total size from backup of '$($diffBkp.Start)'
+    RESTORE DATABASE [$DestinationDbName] FROM  DISK = N'$networkPath'
+        WITH NORECOVERY
+             ,STATS = 5
+    GO
 "@;
 
-$sqlText += @"
+    $sqlText += @"
 
-if (@@ERROR <> 0)
-	set noexec on;
-GO
+    if (@@ERROR <> 0)
+	    set noexec on;
+    GO
 "@;
+}
 
 # Add TLog backup
 foreach($logFile in $logBkps)
 {
     $networkPath = "\\$SourceServer\" + ($($logFile.Path) -replace ':\\','$\');
+    
     $sqlText += @"
 
 
