@@ -105,6 +105,7 @@ if($verbose)
 }
 . $PSScriptRoot\Cmdlets\Add-ApplicationInfo.ps1
 . $PSScriptRoot\Cmdlets\Add-CollectionError.ps1
+. $PSScriptRoot\Cmdlets\Add-HostsEntry.ps1
 . $PSScriptRoot\Cmdlets\Add-ServerInfo.ps1
 . $PSScriptRoot\Cmdlets\Add-SqlInstanceInfo.ps1
 . $PSScriptRoot\Cmdlets\Collect-DatabaseBackupInfo.ps1
