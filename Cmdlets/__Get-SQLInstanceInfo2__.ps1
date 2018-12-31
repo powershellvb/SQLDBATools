@@ -1,4 +1,4 @@
-﻿Function Get-SQLInstanceInfo
+﻿Function Get-SQLInstanceInfo2
 {
     <#
         .SYNOPSIS
@@ -8,11 +8,11 @@
             Retrieves SQL Server instance general information based on ComputerName parameter value.
 
         .NOTES
-            Name: Get-SQLInstanceInfo
+            Name: Discover-SQLInstances
             Author: Ajay Dwivedi
 
         .EXAMPLE
-            Get-SQLInstanceInfo -ServerName $env:COMPUTERNAME
+            Get-SQLInstanceInfo -ComputerName $env:COMPUTERNAME
 
             Description
             -----------
@@ -120,3 +120,7 @@
         Write-Output $InstanceInfo;
     }
 }
+
+$Server = @('tul1cipedb2','tul1dbapmtdb1','tul1cipcnpdb1');
+Get-SQLInstanceInfo -ServerName $Server | ogv
+

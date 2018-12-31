@@ -1,4 +1,4 @@
-﻿Function Get-ServerInfo
+﻿Function Get-ServerInfo2
 {
     [CmdletBinding()]
     Param (
@@ -6,6 +6,11 @@
                    ValueFromPipelineByPropertyName=$true)]
         #[Alias('ServerName')]
         [String[]]$ServerName
+
+        <#
+        [Parameter(Mandatory=$false)]
+        [System.Management.Automation.PSCredential]$Credential
+        #>
     )
 
     BEGIN 
@@ -43,7 +48,6 @@
             if($Discover)
             {
                 # Find if Server is part of Failover Cluster
-                Write-Verbose "Check ClusterInfo for server [$Svr]";
                 $ClusterInfo = Get-ClusterInfo -ServerName $Svr;
                 if(![String]::IsNullOrEmpty($ClusterInfo)) 
                 {
@@ -134,16 +138,6 @@
                         $ips = $($ping.Send("$Comp").Address).IPAddressToString;
                         $HostName = (Get-FullQualifiedDomainName -ComputerName $cs.Name);
 
-                        $Cpu = $cs.NumberOfLogicalProcessors;
-                        if([string]::IsNullOrEmpty($Cpu)) {
-                            $CPUInfo = Get-WmiObject Win32_Processor -ComputerName $Comp #Get CPU Information ;
-                            $Cpu = $CPUInfo.Count ;
-                        }
-
-                        $RAM = $cs.totalphysicalmemory/1MB -AS [int];
-                        if([string]::IsNullOrEmpty($RAM)) {
-                            $RAM = Get-WmiObject CIM_PhysicalMemory -ComputerName $Comp | Measure-Object -Property capacity -Sum | % {[math]::round(($_.sum / 1MB),2)} 
-                        }
 
                         $props = [Ordered]@{ 
                                     'ServerName' = $Comp;
@@ -164,8 +158,8 @@
                                     'IsVM' = $IsVm;
                                     'Manufacturer' = $Manufacturer;
                                     'Model'=$cs.Model;
-                                    'RAM(MB)'=$RAM;
-                                    'CPU'=$Cpu;
+                                    'RAM(MB)'=$cs.totalphysicalmemory/1MB -AS [int];
+                                    'CPU'=$cs.NumberOfLogicalProcessors;
                                     'Powerplan' = $Powerplan;
                                     'OSArchitecture' = $os.OSArchitecture;
                                   }
@@ -215,3 +209,6 @@ Server02      Microsoft Windows Server 2008 R2 Enterprise  Service Pack 1 3/22/2
       https://github.com/imajaydwivedi/SQLDBATools
   #>
 }
+
+#Get-ServerInfo2 -ServerName 'tul1cipedb2' | ogv
+#Get-ServerInfo2 -ServerName 'TUL1SKYPEBEDB4' | ogv

@@ -1,4 +1,4 @@
-﻿$env:PSModulePath = $env:PSModulePath + ";" + "C:\Users\adwivedi\Documents\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules\;C:\Program Files\MVPSI\Modules\";
+﻿$env:PSModulePath = $env:PSModulePath + ";" + "C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules\;C:\Program Files\MVPSI\Modules\";
 
 Import-Module SQLDBATools -DisableNameChecking;
 
@@ -16,7 +16,9 @@ TRY {
         Remove-Item $ExecutionLogsFile;
     }
 
-    "Following SQL Instances are processed in order:-
+    "Script running under context of [$($env:USERDOMAIN)\$($env:USERNAME)]
+------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
 " | Out-File -Append $ExecutionLogsFile;
 
     $stime = Get-Date;
@@ -26,7 +28,7 @@ TRY {
         -MaxResultTime 240 `
         -Command Collect-DatabaseBackupInfo `
         -ObjectList ($servers) `
-        -InputParam SQLInstance -Verbose
+        -InputParam SQLInstance;
 
     $etime = Get-Date
 

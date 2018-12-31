@@ -1,4 +1,4 @@
-﻿$env:PSModulePath = $env:PSModulePath + ";" + "C:\Users\adwivedi\Documents\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules\;C:\Program Files\MVPSI\Modules\";
+﻿$env:PSModulePath = $env:PSModulePath + ";" + "C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules\;C:\Program Files\MVPSI\Modules\";
 
 Import-Module SQLDBATools -DisableNameChecking;
 
@@ -21,10 +21,16 @@ $servers = @($machines | select -ExpandProperty ServerName);
 TRY {
     if (Test-Path $ExecutionLogsFile) {
         Remove-Item $ExecutionLogsFile;
+        # Clear last Log generated
+        Get-ChildItem "$SQLDBATools_ResultsDirectory\Logs\Get-VolumeInfo" | Remove-Item;
     }
 
-    "Following SQL Instances are processed in order:-
+    "Script running under context of [$($env:USERDOMAIN)\$($env:USERNAME)]
+------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
 " | Out-File -Append $ExecutionLogsFile;
+
+    $Error.Clear();
 
     $stime = Get-Date;
     Set-Location 'C:\Users\adwivedi\Documents\WindowsPowerShell\Modules\SQLDBATools';
@@ -33,23 +39,19 @@ TRY {
         -MaxResultTime 240 `
         -Command Collect-VolumeInfo `
         -ObjectList ($servers) `
-        -InputParam ComputerName -Verbose
+        -InputParam ComputerName;
 
     $etime = Get-Date
 
     $timeDiff = New-TimeSpan -Start $stime -End $etime ;
     
-    return 0;
+    return "Script Wrapper-VolumeInfo executed successfully.";
 }
 CATCH {
-    $ErrorMessage = $_.Exception.Message;
-    $FailedItem = $_.Exception.ItemName;
     @"
-Error occurred while running 
-Wrapper-VolumeInfo
-$ErrorMessage
-"@ | Out-host;
+Error occurred while running 'Wrapper-VolumeInfo'
+$Error
+"@ | Out-File -Append $ExecutionLogsFile;
 
-     throw "Something went wrong";
-     return 1;
+     throw "$Error";
 }

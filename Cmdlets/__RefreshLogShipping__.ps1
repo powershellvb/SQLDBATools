@@ -1,8 +1,8 @@
 ﻿# Get-TivoLogWalkBackupRestore
-$SourceServer = 'ANN1VESPDB01';
-$SourceDbName = 'AMGMusic';
-$DestinationServer = 'TUL1MDPDWMSH1C1';
-$DestinationDbName = 'AMGMusic_TestAjay';
+$SourceServer = 'TUL1DBAPMTDB1';
+$SourceDbName = 'SQLDBATOOLS';
+$DestinationServer = 'TUL1DBAPMTDB1';
+$DestinationDbName = 'SQLDBATOOLS';
 
 if($DestinationDbName -eq $null) {$DestinationDbName = $SourceDbName};
 $commentHeader = if ($SourceDbName -eq $DestinationDbName) {"[$SourceServer]"} else {"[$SourceDbName] => [$DestinationDbName]"};

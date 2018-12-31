@@ -85,7 +85,11 @@ Server01      testing      2017-07-20 08:15:21           Full 2018-01-08 15:53:2
             try 
             {
                 # Get Database properties
-                [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SMO') | out-null;
+                [String] $IsLoaded = Get-PSProvider |
+                         Select-Object Name |
+                         Where-Object { $_ -match "Sql*" }
+
+                if ($IsLoaded.Length -eq 0) { [System.Reflection.Assembly]::LoadWithPartialName('Microsoft.SqlServer.SMO') | out-null; }
                 $s = New-Object ('Microsoft.SqlServer.Management.Smo.Server') "$ServerInstance";
 
                 $s.Databases | Where-Object {$_.Name -ne 'tempdb'; $_.Refresh()} |  

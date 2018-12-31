@@ -2,69 +2,13 @@
     Module Name:-   SQLDBATools
     Created By:-    Ajay Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
-    Modified Date:- 22-Apr-2018
+    Modified Date:- 30-Dec-2018
     Version:-       0.2
 #>
 Push-Location;
 Write-Host "====================================================";
 Write-Host "Kindly import 'dbatools' powershell module.." -ForegroundColor Green;
 Write-Host "====================================================";
-
-<#
-# Create -Verbose Switch
-if( ($PSCmdlet.MyInvocation.BoundParameters).Count -eq 0 ) {
-    $verbose = $false;
-}
-elseif( $PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent ) { $verbose = $true; } else { $verbose = $false; }
-
-# Check for SqlServer module
-if ( (Get-Module -ListAvailable -Name SqlServer) -ne $null )
-{
-    if ( (Get-Module -Name SqlServer) -eq $null ) 
-    {
-        if($verbose) {
-            Write-Host "====================================================";
-            Write-Host "'SqlServer' Module is being loaded.." -ForegroundColor Yellow;
-        }
-
-        try { Remove-Module SQLPS -ErrorAction SilentlyContinue;
-                Import-Module SqlServer -ErrorAction SilentlyContinue; }
-        Catch { if($verbose) {Write-Host "Module SqlServer already loaded..";} }
-
-        if($verbose) {
-            Write-Host "====================================================";
-            Write-Host "'SqlServer' Module is loaded with SQLDBATools.." -ForegroundColor Green;
-        }
-    }
-}
-    
-# Find SQL PsProvider and load it
-$sqlProvider = Get-PSProvider | Where-Object {$_.Name -eq 'SqlServer'}
-if([String]::IsNullOrEmpty($sqlProvider.Name))
-{
-    if($verbose) {
-        Write-Host "====================================================";
-        Write-Host "'SqlServer' PSProvider not found. Trying to load it with '$PSScriptRoot\Cmdlets\Load-SmoAndSqlProvider.ps1'" -ForegroundColor Yellow;
-    }
-
-    Invoke-Expression -Command "$PSScriptRoot\Cmdlets\Load-SmoAndSqlProvider.ps1";
-
-    # Check is SQL PSProvider is loaded now?
-    $sqlProvider = Get-PSProvider | Where-Object {$_.Name -eq 'SqlServer'};
-    if([String]::IsNullOrEmpty($sqlProvider.Name)) 
-    {
-        if($verbose) {
-            Write-Host "====================================================";
-            Write-Host "Could not load SqlServer PSProvider" -ForegroundColor Red;
-        }
-    }
-    else {
-        if($verbose) {
-            Write-Host "SqlServer PSProvider loaded successfully." -ForegroundColor Green;
-        }
-    }
-}
-#>
 
 # Check for ActiveDirectory module
 if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }) -eq $null ) 
@@ -120,6 +64,7 @@ if($verbose)
 #. $PSScriptRoot\Get-DBFiles.ps1
 . $PSScriptRoot\Cmdlets\Get-AdministrativeEvents.ps1
 . $PSScriptRoot\Cmdlets\Get-AdUserInfo.ps1
+. $PSScriptRoot\Cmdlets\Get-ClusterInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo_SMO.ps1
 . $PSScriptRoot\Cmdlets\Get-FullQualifiedDomainName.ps1
@@ -141,11 +86,17 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Join-Object.ps1
 . $PSScriptRoot\Cmdlets\Out-DataTable.ps1
 . $PSScriptRoot\Cmdlets\Reset-OwnerShipToSystemAdministrators.ps1
-. $PSScriptRoot\Cmdlets\Script-SQLDatabaseRestore.ps1
+#. $PSScriptRoot\Cmdlets\Restart-WindowsFirewall.ps1
+#. $PSScriptRoot\Cmdlets\Restart-WinRM.ps1
 . $PSScriptRoot\Cmdlets\Run-CommandMultiThreaded.ps1
 . $PSScriptRoot\Cmdlets\Run-sp_WhoIsActive.ps1
+. $PSScriptRoot\Cmdlets\Script-SQLDatabaseRestore.ps1
 . $PSScriptRoot\Cmdlets\Send-SQLMail.ps1
 . $PSScriptRoot\Cmdlets\Set-TivoMailProfile.ps1
+#. $PSScriptRoot\Cmdlets\Set-WinRMFirewallRule.ps1
+#. $PSScriptRoot\Cmdlets\Set-WinRMListener.ps1
+#. $PSScriptRoot\Cmdlets\Set-WinRMStartup.ps1
+
 
 Push-Location;
 

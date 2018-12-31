@@ -1,10 +1,13 @@
-﻿$env:PSModulePath = $env:PSModulePath + ";" + "C:\Users\adwivedi\Documents\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules\;C:\Program Files\MVPSI\Modules\";
+﻿$env:PSModulePath = $env:PSModulePath + ";" + "C:\Program Files\WindowsPowerShell\Modules;C:\Windows\system32\WindowsPowerShell\v1.0\Modules\;C:\Program Files\MVPSI\Modules\";
 
 Import-Module SQLDBATools -DisableNameChecking;
 #Import-Module dbatools -DisableNameChecking;
 
 $ExecutionLogsFile = "$SQLDBATools_ResultsDirectory\Logs\Get-AlwaysOnIssues\___ExecutionLogs.txt";
 #New-Item $ExecutionLogsFile -Force
+
+# Truncate Staging table 
+#Invoke-Sqlcmd -ServerInstance $InventoryInstance -Database $InventoryDatabase -Query 'truncate table  [SQLDBATools].Staging.[AOReplicaInfo];';
 
 $instancesquery ="SELECT ListenerName FROM Info.AlwaysOnListener";
 $instances = Execute-SqlQuery -Query $instancesquery -ServerInstance $InventoryInstance -Database $InventoryDatabase #-ConnectionTimeout 0 -QueryTimeout 0
@@ -41,6 +44,13 @@ TRY {
         Remove-Item $ExecutionLogsFile;
     }
 
+    
+    "
+$(Get-Date) => Script running under context of [$($env:USERDOMAIN)\$($env:USERNAME)]
+------------------------------------------------------------------------------------
+------------------------------------------------------------------------------------
+" | Out-File -Append $ExecutionLogsFile;
+
     "Following SQL Instances are processed in order:-
 " | Out-File -Append $ExecutionLogsFile;
 
@@ -63,6 +73,7 @@ TRY {
     $bc.WriteToServer($dtable);
     $cn.Close();
     
+    return 0;
     
 }
 CATCH {
@@ -86,4 +97,6 @@ Error occurred AO Listener $AOServer
 $ErrorMessage
 "@ | Out-File $errorFile;
             Write-Verbose "Error occurred in while trying to get Replica Info for AO Listener [$AOServer]. Kindly check logs at $errorFile";
+
+            return 1;
 }
