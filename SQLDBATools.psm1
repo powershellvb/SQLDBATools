@@ -5,10 +5,19 @@
     Modified Date:- 30-Dec-2018
     Version:-       0.2
 #>
+
 Push-Location;
-Write-Host "====================================================";
-Write-Host "Kindly import 'dbatools' powershell module.." -ForegroundColor Green;
-Write-Host "====================================================";
+# First Load Environment Variables
+if($verbose)
+{
+    Write-Host "====================================================";
+    Write-Host "'Environment Variables are being loaded.." -ForegroundColor Yellow;
+}
+Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
+
+Write-Verbose "====================================================";
+Write-Verbose "Kindly import 'dbatools' powershell module..";
+Write-Verbose "====================================================";
 
 # Check for ActiveDirectory module
 if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }) -eq $null ) 

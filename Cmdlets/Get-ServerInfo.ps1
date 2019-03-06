@@ -25,8 +25,9 @@
         {
             # Switch to get ensure if ServerInfo is to be discovered
             $Discover = $true;
-
-            Write-Host "Finding details for `$Svr = '$Svr'." -ForegroundColor Yellow;
+            if($PrintUserFriendlyMessage) {
+                Write-Host "Finding details for `$Svr = '$Svr'." -ForegroundColor Yellow;
+            }
             if ([String]::IsNullOrEmpty($Svr) -or (Test-Connection -ComputerName $Svr -Count 1 -Quiet) -eq $false)
             {
                 Write-Host "Supplied value '$Svr' for ServerName parameter is invalid, or server is not accessible." -ForegroundColor Red;
@@ -132,7 +133,14 @@
 
                         $ping = New-Object System.Net.NetworkInformation.Ping;
                         $ips = $($ping.Send("$Comp").Address).IPAddressToString;
+                        
                         $HostName = (Get-FullQualifiedDomainName -ComputerName $cs.Name);
+
+                        $pServerName = if($FQDN  -match "^(?'ServerName'[0-9A-Za-z_-]+)\.*?.*"){$Matches['ServerName']}else{$null}
+                        if($ips.Length -le 6 -and $pServerName -eq $env:COMPUTERNAME ) {
+                            $ip = get-WmiObject Win32_NetworkAdapterConfiguration | Where-Object {![string]::IsNullOrEmpty($_.IPAddress)} | Select-Object -ExpandProperty IPAddress | Where-Object {$_.IndexOf('::') -eq -1}
+                            $ips = if($ip -is [array]) {$ip[0]} else {$ip}
+                        }
 
                         $Cpu = $cs.NumberOfLogicalProcessors;
                         if([string]::IsNullOrEmpty($Cpu)) {
@@ -146,7 +154,7 @@
                         }
 
                         $props = [Ordered]@{ 
-                                    'ServerName' = $Comp;
+                                    'ServerName' = $pServerName;
                                     'FQDN' = $FQDN;
                                     'IPAddress'= $ips;
                                     'Domain'=$cs.Domain;

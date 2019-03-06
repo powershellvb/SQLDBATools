@@ -1,8 +1,8 @@
 ﻿# Get-TivoLogWalkBackupRestore
-$SourceServer = 'TUL1DBAPMTDB1';
-$SourceDbName = 'SQLDBATOOLS';
-$DestinationServer = 'TUL1DBAPMTDB1';
-$DestinationDbName = 'SQLDBATOOLS';
+$SourceServer = 'ServerName\Instance';
+$SourceDbName = 'TivoSQLInventory';
+$DestinationServer = 'DestinationSqlInstanceName';
+$DestinationDbName = 'TivoSQLInventory';
 
 if($DestinationDbName -eq $null) {$DestinationDbName = $SourceDbName};
 $commentHeader = if ($SourceDbName -eq $DestinationDbName) {"[$SourceServer]"} else {"[$SourceDbName] => [$DestinationDbName]"};
