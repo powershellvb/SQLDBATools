@@ -77,6 +77,7 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo_SMO.ps1
 . $PSScriptRoot\Cmdlets\Get-FullQualifiedDomainName.ps1
+. $PSScriptRoot\Cmdlets\Get-HBAWin.ps1
 . $PSScriptRoot\Cmdlets\Get-MachineType.ps1
 . $PSScriptRoot\Cmdlets\Get-PerfMonCounters.ps1
 . $PSScriptRoot\Cmdlets\Get-PowerPlanInfo.ps1
@@ -102,6 +103,11 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Script-SQLDatabaseRestore.ps1
 . $PSScriptRoot\Cmdlets\Send-SQLMail.ps1
 . $PSScriptRoot\Cmdlets\Set-TivoMailProfile.ps1
+. $PSScriptRoot\Cmdlets\Set-Owner.ps1
+. $PSScriptRoot\Cmdlets\Setup-BaselineWithWhoIsActive.ps1
+. $PSScriptRoot\Cmdlets\Setup-LogWalkAlert_with_ServiceBroker.ps1
+. $PSScriptRoot\Cmdlets\Setup-SelfServiceModules.ps1
+. $PSScriptRoot\Cmdlets\Setup-TivoDbaLogWalk.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMFirewallRule.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMListener.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMStartup.ps1

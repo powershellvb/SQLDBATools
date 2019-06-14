@@ -5,3 +5,4 @@ Set-Variable -Name InventoryErrorLogsTable -Value '[Staging].[CollectionErrors]'
 Set-Variable -Name DBAMailId -Value 'ajay.dwivedi2007@gmail.com' -Scope Global;
 Set-Variable -Name DbaDatabase -Value 'DBA' -Scope Global;
 Set-Variable -Name LogErrorToInventoryTable -Value $false -Scope Global;
+Set-Variable -Name PrintUserFriendlyMessage -Value $false -Scope Global;

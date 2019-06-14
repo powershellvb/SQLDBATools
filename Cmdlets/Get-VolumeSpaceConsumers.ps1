@@ -30,6 +30,32 @@
         [String]$pathOrFolder
     )
 
+    if($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent -or $Global:PrintUserFriendlyMessage)
+    {
+        Write-Host "Setting ownership to Administrators for path '$pathOrFolder'" -ForegroundColor Yellow;
+
+        if ($ComputerName -eq $env:ComputerName)
+        {
+            $cmdCommand = "{ takeown /f `"$pathOrFolder`" /r /d y /a }";
+            Invoke-Command -ScriptBlock $cmdCommand;
+        }
+        else {
+            $command = { "takeown --% /f `"$pathOrFolder`" /r /d y /a" }
+            Invoke-Command -ComputerName $ComputerName -ScriptBlock $command
+        }
+
+        #$cmdCommand = "takeown /s `"$ComputerName`" /f `"$pathOrFolder`" /r /d y /a";
+        #Write-Host $cmdCommand;
+        #Invoke-Command -ComputerName $ComputerName -ScriptBlock {takeown --% /f "$pathOrFolder" /r /d y /a}
+
+        # Transfer Ownership of files/folders to Administrators
+        #cmd.exe /c "$cmdCommand";
+        #& $cmdCommand;
+        #& "takeown" /s "$ComputerName" /f `"$pathOrFolder`" /r /d y /a";
+
+        Write-Host "Ownership transfer is done." -ForegroundColor Green;
+    }
+
     $searchPath = "\\$ComputerName\$pathOrFolder" -replace ":","$";
     Write-Host "`$searchPath = '$searchPath'" -ForegroundColor Green;
     
