@@ -6,13 +6,13 @@ cls
 $SourceDatabases_DS12 = @('AMG_AVG','AMG_Extra','AMG_Music','AMG_MusicMore','Babel','DSG_EU','Facebook','Mosaic','MuzeUK','MuzeUS','MuzeVideo','Prism','RGS','RCM_rovicore_20130710_NoMusic1a_en-US','Sky','Staging','Staging2','Twitter','TVGolConfigs','UKVideo');
 foreach($SourceDb in $SourceDatabases_DS12)
 {
-    Setup-TivoDbaLogWalk -SourceServer TUL1MDPDWMID01 -SourceDbName $SourceDb -DestinationServer TUL1MDPDWDS12 -GenerateRESTOREScriptOnly;
+    Setup-DbaLogWalk -SourceServer TUL1MDPDWMID01 -SourceDbName $SourceDb -DestinationServer TUL1MDPDWDS12 -GenerateRESTOREScriptOnly;
 }
 
 $SourceDatabases_DS13 = @('AMG_AVG','AMG_Extra','AMG_Music','AMG_MusicMore','Babel','DSG_EU','Facebook','IDS_Turner','Mosaic','MuzeUK','MuzeVideo','Prism','Staging','Staging2','Twitter','TVGolConfigs');
 foreach($SourceDb in $SourceDatabases_DS13)
 {
-    Setup-TivoDbaLogWalk -SourceServer TUL1MDPDWMID01 -SourceDbName $SourceDb -DestinationServer TUL1MDPDWDS13 -GenerateRESTOREScriptOnly;
+    Setup-DbaLogWalk -SourceServer TUL1MDPDWMID01 -SourceDbName $SourceDb -DestinationServer TUL1MDPDWDS13 -GenerateRESTOREScriptOnly;
 }
 
 <#

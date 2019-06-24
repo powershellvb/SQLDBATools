@@ -1,4 +1,4 @@
-﻿Function Set-TivoMailProfile
+﻿Function Setup-DbaMailProfile
 {
     [CmdletBinding()]
     Param (
@@ -28,7 +28,7 @@
             Write-Host "Success($ServerInstance): Mail profile script successfully executed. Pls check for test mail" -ForegroundColor Green;
         }
     }
-    catch 
+    catch
     {
         Write-Host "Error($ServerInstance): Failure while executing SQL code from file $mailProfileTSQLScriptFile" -ForegroundColor Red;
         $ErrorMessage = $_.Exception.Message

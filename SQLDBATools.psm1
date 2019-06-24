@@ -2,8 +2,8 @@
     Module Name:-   SQLDBATools
     Created By:-    Ajay Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
-    Modified Date:- 30-Dec-2018
-    Version:-       0.2
+    Modified Date:- 24-June-2019
+    Version:-       0.3
 #>
 
 Push-Location;
@@ -102,12 +102,12 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Run-sp_WhoIsActive.ps1
 . $PSScriptRoot\Cmdlets\Script-SQLDatabaseRestore.ps1
 . $PSScriptRoot\Cmdlets\Send-SQLMail.ps1
-. $PSScriptRoot\Cmdlets\Set-TivoMailProfile.ps1
 . $PSScriptRoot\Cmdlets\Set-Owner.ps1
 . $PSScriptRoot\Cmdlets\Setup-BaselineWithWhoIsActive.ps1
-. $PSScriptRoot\Cmdlets\Setup-LogWalkAlert_with_ServiceBroker.ps1
+. $PSScriptRoot\Cmdlets\Setup-DbaLogWalk.ps1
+. $PSScriptRoot\Cmdlets\Setup-DbaMailProfile.ps1
+. $PSScriptRoot\Cmdlets\Setup-ServiceBroker_4_LogWalkAlert.ps1
 . $PSScriptRoot\Cmdlets\Setup-SelfServiceModules.ps1
-. $PSScriptRoot\Cmdlets\Setup-TivoDbaLogWalk.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMFirewallRule.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMListener.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMStartup.ps1

@@ -1,4 +1,4 @@
-﻿Function Setup-TivoDbaLogWalk
+﻿Function Setup-DbaLogWalk
 {
 <#
 .SYNOPSIS
@@ -24,22 +24,22 @@
 .PARAMETER ProcessAllLogBackups
     With this switch, we process all available Log backup files. By default, we process, last Full, diff & 1st Log backup.
 .EXAMPLE
-    C:\PS> Setup-TivoDbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02
+    C:\PS> Setup-DbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02
     Generates RESTORE tsql code for [MyDb1] database, and creates Log Walk job named [DBA Log Walk - Restore MyDb1 as MyDb1]
 .EXAMPLE
-    C:\PS> Setup-TivoDbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2
+    C:\PS> Setup-DbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2
     Generates RESTORE tsql code for [MyDb2] database, and creates Log Walk job named [DBA Log Walk - Restore MyDb1 as MyDb2]
 .EXAMPLE
-    C:\PS> Setup-TivoDbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2 -ScriptOutPermissions
+    C:\PS> Setup-DbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2 -ScriptOutPermissions
     Script out existing permissions of DestinationDbName, and then Generate RESTORE tsql code for [MyDb2] database, and creates Log Walk job named [DBA Log Walk - Restore MyDb1 as MyDb2]
 .EXAMPLE
-    C:\PS> Setup-TivoDbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2 -ScriptOutPermissions -RecoverDatabase
+    C:\PS> Setup-DbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2 -ScriptOutPermissions -RecoverDatabase
     Script out existing permissions of DestinationDbName and Generate RESTORE tsql code for [MyDb2] database. The code generated will bring database in READ_WRITE mode(RECOVERY).
 .EXAMPLE
-    C:\PS> Setup-TivoDbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2 -GenerateRESTOREScriptOnly
+    C:\PS> Setup-DbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2 -GenerateRESTOREScriptOnly
     Generate RESTORE tsql code for [MyDb2] database with NORECOVERY option
 .EXAMPLE
-    C:\PS> Setup-TivoDbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2 -GenerateRESTOREScriptOnly -ProcessAllLogBackups
+    C:\PS> Setup-DbaLogWalk -SourceServer DbServer01 -SourceDbName MyDb1 -DestinationServer DbServer02 -DestinationDbName MyDb2 -GenerateRESTOREScriptOnly -ProcessAllLogBackups
     Generate RESTORE tsql code for [MyDb2] database with NORECOVERY option with Last Full + Diff + All available log backups.
 .LINK
     https://github.com/imajaydwivedi/SQLDBATools
@@ -292,7 +292,7 @@
 	        SELECT 1 as [Exists]
 "@;
         $runningCode = $null;
-        $friendlyErrorMessage = "Kindly make sure pre-requisites of New Log Walk Alert with ServiceBroker is established using 'Setup-LogWalkAlert_with_ServiceBroker' cmdlet.";
+        $friendlyErrorMessage = "Kindly make sure pre-requisites of New Log Walk Alert with ServiceBroker is established using 'Setup-ServiceBroker_4_LogWalkAlert' cmdlet.";
         $exists = Invoke-DbaQuery -SqlInstance $destinationSrvToken -Query $tsqlQuery | Select-Object -ExpandProperty Exists;
         if([string]::IsNullOrEmpty($exists) -eq $true -or $exists -eq 0) {
             $abort = $true;
