@@ -1,4 +1,4 @@
-﻿Function Run-sp_WhoIsActive
+﻿Function Invoke-sp_WhoIsActive
 {
     Param (
             [Alias('ServerName','MachineName')]

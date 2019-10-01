@@ -1,4 +1,4 @@
-﻿Function Fetch-ServerInfo
+﻿Function Select-ServerInfo
 {
     [CmdletBinding()]
     Param (

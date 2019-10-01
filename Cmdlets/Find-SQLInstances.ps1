@@ -1,4 +1,4 @@
-﻿Function Discover-SQLInstances
+﻿Function Find-SQLInstances
 {
     <#
         .SYNOPSIS

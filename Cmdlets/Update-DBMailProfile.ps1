@@ -1,4 +1,4 @@
-﻿Function Modify-DBMailProfile {
+﻿Function Update-DBMailProfile {
 <#
 .SYNOPSIS
 Creates command modifies the default Database mail profile for server/instance passed as parameter

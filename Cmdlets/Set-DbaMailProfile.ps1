@@ -1,4 +1,4 @@
-﻿Function Setup-DbaMailProfile
+﻿Function Set-DbaMailProfile
 {
     [CmdletBinding()]
     Param (

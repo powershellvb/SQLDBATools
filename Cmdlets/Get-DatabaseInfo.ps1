@@ -35,5 +35,3 @@
         $DatabaseInfo | Write-Output;
     }
 }
-
-Get-DatabaseInfo -ServerInstance DAL2SKYPEBEDB1,TUL1CIPCMPDB1 -Verbose

@@ -1,4 +1,4 @@
-﻿Function Collect-SecurityCheckInfo
+﻿Function Add-SecurityCheckInfo
 {
     [CmdletBinding()]
     Param (

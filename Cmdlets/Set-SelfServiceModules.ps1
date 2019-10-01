@@ -1,4 +1,4 @@
-﻿Function Setup-SelfServiceModules
+﻿Function Set-SelfServiceModules
 {
     [CmdletBinding()]
     Param (

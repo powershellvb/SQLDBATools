@@ -1,4 +1,4 @@
-﻿Function Collect-DatabaseInfo
+﻿Function Add-DatabaseInfo
 {
     
     [CmdletBinding()]

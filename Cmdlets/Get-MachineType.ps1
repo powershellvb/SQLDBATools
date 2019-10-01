@@ -1,4 +1,6 @@
-﻿<# 
+﻿Function Get-MachineType
+{ 
+<# 
 .Synopsis 
    A quick function to determine if a computer is VM or physical box. 
 .DESCRIPTION 
@@ -24,9 +26,7 @@
    Query if a list of computers are physical or virtual machines. 
 .LINK 
    https://gallery.technet.microsoft.com/scriptcenter/Get-MachineType-VM-or-ff43f3a9 
-#> 
-Function Get-MachineType
-{ 
+#>
     [CmdletBinding()] 
     [OutputType([int])] 
     Param 

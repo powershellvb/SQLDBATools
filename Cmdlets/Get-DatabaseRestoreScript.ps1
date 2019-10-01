@@ -1,4 +1,4 @@
-﻿Function Script-SQLDatabaseRestore
+﻿Function Get-DatabaseRestoreScript
 {
 <#
 .SYNOPSIS

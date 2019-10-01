@@ -1,4 +1,4 @@
-﻿Function Collect-VolumeInfo 
+﻿Function Add-VolumeInfo 
 {
     
     [CmdletBinding()]

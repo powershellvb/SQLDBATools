@@ -1,4 +1,4 @@
-﻿Function Setup-DbaLogWalk
+﻿Function Set-DbaLogWalk
 {
 <#
 .SYNOPSIS

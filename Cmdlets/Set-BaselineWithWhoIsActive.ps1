@@ -1,4 +1,4 @@
-﻿Function Setup-BaselineWithWhoIsActive
+﻿Function Set-BaselineWithWhoIsActive
 {
     [CmdletBinding()]
     Param (

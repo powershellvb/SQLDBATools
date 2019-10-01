@@ -1,4 +1,4 @@
-﻿Function Setup-ServiceBroker_4_LogWalkAlert
+﻿Function Set-ServiceBroker_4_LogWalkAlert
 {
     [CmdletBinding()]
     Param (
