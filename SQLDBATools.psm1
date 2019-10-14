@@ -1,9 +1,9 @@
 ﻿<# 
     Module Name:-   SQLDBATools
-    Created By:-    Ajay Dwivedi
+    Created By:-    Ajay Kumar Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
-    Modified Date:- 24-June-2019
-    Version:-       0.3
+    Modified Date:- 14-Oct-2019
+    Version:-       0.0
 #>
 
 Push-Location;
@@ -111,6 +111,7 @@ if($verbose)
 #. $PSScriptRoot\Cmdlets\Set-WinRMFirewallRule.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMListener.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMStartup.ps1
+. $PSScriptRoot\Cmdlets\Show-Password.ps1
 
 
 Push-Location;

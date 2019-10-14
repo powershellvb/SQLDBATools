@@ -74,6 +74,7 @@ Server02      G:\                 674            483            72           191
                     Select-Object -Property @{l='ComputerName';e={$_.PSComputerName}}, 
                                             @{l='VolumeName';e={$_.Name}}, 
                                             @{l='Capacity(GB)';e={$_.Capacity / 1GB -AS [INT]}},
+                                            @{l='BlockSize(KB)';e={$_.BlockSize / 1KB -AS [INT]}},
                                             @{l='Used Space(GB)';e={($_.Capacity - $_.FreeSpace)/ 1GB -AS [INT]}},
                                             @{l='Used Space(%)';e={((($_.Capacity - $_.FreeSpace) / $_.Capacity) * 100) -AS [INT]}},
                                             @{l='FreeSpace(GB)';e={$_.FreeSpace / 1GB -AS [INT]}},
@@ -97,6 +98,7 @@ Server02      G:\                 674            483            72           191
                 $props = [Ordered]@{ 'ComputerName'=$diskInfo.ComputerName;
                                     'VolumeName'= $diskInfo.VolumeName;
                                     'Capacity(GB)'= $diskInfo.'Capacity(GB)';
+                                    'Block Size(KB)'=$diskInfo.'BlockSize(KB)';
                                     'Used Space(GB)'= $diskInfo.'Used Space(GB)';
                                     'Used Space(%)'= $diskInfo.'Used Space(%)';
                                     'FreeSpace(GB)'= $diskInfo.'FreeSpace(GB)';
