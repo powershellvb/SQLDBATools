@@ -77,6 +77,8 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Get-FullQualifiedDomainName.ps1
 . $PSScriptRoot\Cmdlets\Get-HBAWin.ps1
 . $PSScriptRoot\Cmdlets\Get-MachineType.ps1
+. $PSScriptRoot\Cmdlets\Get-MSSQLLinkPasswords.ps1
+. $PSScriptRoot\Cmdlets\Get-Password4Account.ps1
 . $PSScriptRoot\Cmdlets\Get-PerfMonCounters.ps1
 . $PSScriptRoot\Cmdlets\Get-PowerPlanInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-ProcessForDBA.ps1
@@ -118,5 +120,5 @@ Push-Location;
 
 <#
 Remove-Module SQLDBATools -ErrorAction SilentlyContinue;
-Import-Module SQLDBATools -DisableNameChecking;
+Import-Module SQLDBATools;
 #>
