@@ -2,7 +2,7 @@
     Module Name:-   SQLDBATools
     Created By:-    Ajay Kumar Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
-    Modified Date:- 14-Oct-2019
+    Modified Date:- 21-Oct-2019
     Version:-       0.0
 #>
 
@@ -76,6 +76,7 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo_SMO.ps1
 . $PSScriptRoot\Cmdlets\Get-FullQualifiedDomainName.ps1
 . $PSScriptRoot\Cmdlets\Get-HBAWin.ps1
+. $PSScriptRoot\Cmdlets\Get-LinkedServer.ps1
 . $PSScriptRoot\Cmdlets\Get-MachineType.ps1
 . $PSScriptRoot\Cmdlets\Get-MSSQLLinkPasswords.ps1
 . $PSScriptRoot\Cmdlets\Get-Password4Account.ps1
@@ -93,32 +94,39 @@ if($verbose)
 #. $PSScriptRoot\Get-SQLInstance.ps1
 . $PSScriptRoot\Cmdlets\Get-VolumeSpaceConsumers.ps1
 . $PSScriptRoot\Cmdlets\Get-WhoIsActive.ps1
+. $PSScriptRoot\Cmdlets\Install-OlaHallengrenMaintenanceScripts.ps1
+. $PSScriptRoot\Cmdlets\Install-SqlInstance.ps1
 . $PSScriptRoot\Cmdlets\Invoke-CommandMultiThreaded.ps1
 . $PSScriptRoot\Cmdlets\Invoke-sp_WhoIsActive.ps1
 . $PSScriptRoot\Cmdlets\Invoke-TsqlScript.ps1
 . $PSScriptRoot\Cmdlets\Invoke-SqlQuery.ps1
 . $PSScriptRoot\Cmdlets\Join-Object.ps1
+. $PSScriptRoot\Cmdlets\Optimize-ModelDatabase.ps1
 . $PSScriptRoot\Cmdlets\Out-DataTable.ps1
-. $PSScriptRoot\Cmdlets\Select-ServerInfo.ps1
 . $PSScriptRoot\Cmdlets\Reset-OwnerShipToSystemAdministrators.ps1
 #. $PSScriptRoot\Cmdlets\Restart-WindowsFirewall.ps1
 #. $PSScriptRoot\Cmdlets\Restart-WinRM.ps1
+. $PSScriptRoot\Cmdlets\Select-ServerInfo.ps1
 . $PSScriptRoot\Cmdlets\Send-SQLMail.ps1
+. $PSScriptRoot\Cmdlets\Set-DbaConfigurations.ps1
+. $PSScriptRoot\Cmdlets\Set-IndexOptimizeJobs.ps1
 . $PSScriptRoot\Cmdlets\Set-Owner.ps1
 . $PSScriptRoot\Cmdlets\Set-BaselineWithWhoIsActive.ps1
 . $PSScriptRoot\Cmdlets\Set-DbaLogWalk.ps1
 . $PSScriptRoot\Cmdlets\Set-DbaMailProfile.ps1
 . $PSScriptRoot\Cmdlets\Set-ServiceBroker_4_LogWalkAlert.ps1
 . $PSScriptRoot\Cmdlets\Set-SelfServiceModules.ps1
+. $PSScriptRoot\Cmdlets\Set-ServerState.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMFirewallRule.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMListener.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMStartup.ps1
 . $PSScriptRoot\Cmdlets\Show-Password.ps1
+. $PSScriptRoot\Cmdlets\UnInstall-SqlInstance.ps1
 
 
 Push-Location;
 
 <#
 Remove-Module SQLDBATools -ErrorAction SilentlyContinue;
-Import-Module SQLDBATools;
+Import-Module SQLDBATools
 #>

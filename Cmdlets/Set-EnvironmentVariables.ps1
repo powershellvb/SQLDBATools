@@ -7,3 +7,5 @@ Set-Variable -Name DbaDatabase -Value 'DBA' -Scope Global;
 Set-Variable -Name AutomationDatabase -Value 'SQLDBATools' -Scope Global;
 Set-Variable -Name LogErrorToInventoryTable -Value $false -Scope Global;
 Set-Variable -Name PrintUserFriendlyMessage -Value $false -Scope Global;
+Set-Variable -Name SQLDBATools_ContsoAccount -Value 'Contso\SQLDBATools' -Scope Global;
+Set-Variable -Name SQL_Server_Setups -Value '\\itserver\it\SQL_Server_Setups\' -Scope Global;

@@ -10,6 +10,9 @@
 	.DESCRIPTION
 	  Get-MSSQLLinkPasswords extracts and decrypts the connection credentials for all linked servers that use SQL Server authentication on all local MSSQL instances.
 	
+    .PARAMETER SqlInstance
+      Name of the Sql Instance where Linked Server username passwords have to be decrypted.
+
 	.INPUTS
 	  None
 	
@@ -37,9 +40,11 @@
 	
 	.LINK
 	  http://www.netspi.com/blog/
+    .LINK
+      https://github.com/imajaydwivedi/SQLDBATools
   #>
 
-  [CmdletBinding()]
+  [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='High')]
   Param (
     [string[]]$SqlInstance = $Env:computername
   )
@@ -48,43 +53,58 @@
   $Results = @();
 
   foreach($sqlInst in $SqlInstance) {
-      $InstanceName = $null;
+      $InstanceName = 'MSSQLSERVER';
       $ComputerName = $sqlInst.Split('\')[0];
       if($sqlInst.Contains('\')){$InstanceName = $sqlInst.Split('\')[1]}
 
       Write-Verbose "`$ComputerName = $ComputerName";
 
       $ScriptBlock = {
-          $f_InstanceName = if([string]::IsNullOrEmpty($Using:InstanceName)){$null}else{$Using:InstanceName};
+          $VerbosePreference = $Using:VerbosePreference;
+          $ConfirmPreference = $Using:ConfirmPreference;
+          $WhatIfPreference = $Using:WhatIfPreference;
+          $DebugPreference = $Using:DebugPreference;
 
-          Write-Verbose "`$SqlInstance = $ComputerName\$f_InstanceName";
+          $ComputerName = $Using:ComputerName;
+          $InstanceName = $Using:InstanceName;
+          $SqlInstance = $Using:SqlInst;
+
+          Write-Verbose "`$SqlInstance = $SqlInstance";
 
           Add-Type -assembly System.Security
           Add-Type -assembly System.Core
 
           # Set local computername and get all SQL Server instances
-          $ComputerName = $Env:computername
-          $SqlInstances = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server' -Name InstalledInstances).InstalledInstances;
-          if([string]::IsNullOrEmpty($f_InstanceName) -eq $false) {
-            $SqlInstances = $SqlInstances | Where-Object {$_ -eq $f_InstanceName};
-          }
+          
+          #Write-Verbose "Find SQL Instances on server $ComputerName"
+          #$SqlInstances = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server' -Name InstalledInstances).InstalledInstances;
+
+          #$SqlInstances
+
+          #Write-Verbose "Filter out other instances"
+          #if([string]::IsNullOrEmpty($f_InstanceName) -eq $false) {
+            #$SqlInstances = $SqlInstances | Where-Object {$_ -eq $f_InstanceName};
+          #}
   
           $Results = New-Object "System.Data.DataTable"
           $Results.Columns.Add("Instance") | Out-Null
           $Results.Columns.Add("Linkserver") | Out-Null
           $Results.Columns.Add("User") | Out-Null
           $Results.Columns.Add("Password") | Out-Null
+
+          Write-Verbose "Created System.Data.DataTable ";
   
-          foreach ($InstanceName in $SqlInstances) {
+          #foreach ($InstanceName in $SqlInstances) {
   
             # Start DAC connection to SQL Server
             # Default instance MSSQLSERVER -> instance name cannot be used in connection string
             if ($InstanceName -eq "MSSQLSERVER") {
-              $ConnString = "Server=ADMIN:$ComputerName\;Trusted_Connection=True"
+              $ConnString = "Server=ADMIN:$ComputerName;Trusted_Connection=True"
             }
             else {
               $ConnString = "Server=ADMIN:$ComputerName\$InstanceName;Trusted_Connection=True"
             }
+            Write-Verbose "`$ConnString = `"$ConnString`"";
             $Conn = New-Object System.Data.SqlClient.SQLConnection($ConnString);
   
             Try{$Conn.Open();}
@@ -93,17 +113,24 @@
               Continue
             }
             if ($Conn.State -eq "Open"){
-              # Query Service Master Key from the database - remove padding from the key
+              Write-Verbose "DAC connection successfull";
+
+              Write-Verbose "Query Service Master Key from the database - remove padding from the key";
               # key_id 102 eq service master key, thumbprint 3 means encrypted with machinekey
               $SqlCmd="SELECT substring(crypt_property,9,len(crypt_property)-8) FROM sys.key_encryptions WHERE key_id=102 and (thumbprint=0x03 or thumbprint=0x0300000001)"
               $Cmd = New-Object System.Data.SqlClient.SqlCommand($SqlCmd,$Conn);
               $SmkBytes=$Cmd.ExecuteScalar()
+              Write-Verbose "`$SmkBytes = `"$SmkBytes`"";
     
               # Get entropy from the registry - hopefully finds the right SQL server instance
+              Write-Verbose "Get entropy from the registry - hopefully finds the right SQL server instance";
               $RegPath = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\sql\").$InstanceName
               [byte[]]$Entropy = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$RegPath\Security\").Entropy
-  
+              Write-Verbose "`$RegPath = `"$RegPath`"";
+              Write-Verbose "`$Entropy = `"$Entropy`"";
+
               # Decrypt the service master key
+              Write-Verbose "Decrypt the service master key";
               $ServiceKey = [System.Security.Cryptography.ProtectedData]::Unprotect($SmkBytes, $Entropy, 'LocalMachine') 
     
               # Choose the encryption algorithm based on the SMK length - 3DES for 2008, AES for 2012
@@ -156,7 +183,7 @@
 	          }
               $Conn.Close();
             }
-          }
+          #}
           $Results
        } # ScriptBlock
 

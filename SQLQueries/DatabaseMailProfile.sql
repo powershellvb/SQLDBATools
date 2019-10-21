@@ -1,13 +1,14 @@
-/*
-	Created By:		Ajay Dwivedi
-	Created Date:	09-Feb-2018
-	Updated Date:	09-Feb-2018
-	Version:		0.0
-	Purpose:		Create/Update Mail Profile in TiVo SQL Server Environments
-*/ 
+--Created By:		Ajay Dwivedi
+--Created Date:	09-Feb-2018
+--Updated Date:	09-Feb-2018
+--Version:		0.0
+--Purpose:		Create/Update Mail Profile in TiVo SQL Server Environments
+
 SET NOCOUNT ON;
 
 --	Declare variables and other objects
+DECLARE @verbose BIT = 0;
+
 DECLARE @DisplayName SYSNAME;
 DECLARE @ProfilesAccounts TABLE 
 (	profile_id INT, 
@@ -18,23 +19,35 @@ DECLARE @ProfilesAccounts TABLE
 );
 DECLARE @profile_name SYSNAME, @account_name SYSNAME, @sequence_number INT;
 
-
 -- Set Display name with Instance/Server Name
 SELECT @DisplayName = CASE WHEN CHARINDEX('\',@@SERVERNAME) = 0 THEN 'SQL Alerts - '+@@SERVERNAME ELSE 'SQL Alerts - '+REPLACE(@@SERVERNAME,'\','(')+')' END;
 --SET @DisplayName = 'SQL Alerts - '+@@SERVERNAME;
+IF @verbose = 1
+	SELECT [@DisplayName] = @DisplayName;
+
 
 -- Find out all Mail Profiles with Account Details
+IF @verbose = 1
+	PRINT 'Find out all Mail Profiles with Account Details';
 INSERT @ProfilesAccounts
-EXECUTE msdb.dbo.sysmail_help_profileaccount_sp @profile_name = @@SERVERNAME ;  
+EXECUTE msdb.dbo.sysmail_help_profileaccount_sp --@profile_name = @@SERVERNAME ;  
 
 -- Create Mail Account and Attach it with Profile if NOT EXISTS
 	-- Also, change the Sequence Number for other accounts
+-- Find out all Mail Profiles with Account Details
+IF @verbose = 1
+BEGIN
+	PRINT 'Create Mail Account and Attach it with Profile if NOT EXISTS';
+	PRINT '		Also, change the Sequence Number for other accounts';
+END
 IF NOT EXISTS (SELECT * FROM @ProfilesAccounts as a WHERE a.profile_name = @@SERVERNAME AND a.account_name = 'SQLAlerts')
-	OR EXISTS (SELECT * FROM @ProfilesAccounts as a WHERE a.profile_name = @@SERVERNAME AND a.account_name <> 'SQLAlerts' AND sequence_number = 1)
+	OR EXISTS (SELECT * FROM @ProfilesAccounts as a WHERE a.profile_name = @@SERVERNAME AND sequence_number = 1 AND a.account_name <> 'SQLAlerts')
 BEGIN
 	-- Create Database Mail account for SQLAlerts if NOT EXISTS
 	IF NOT EXISTS (SELECT * FROM [msdb]..[sysmail_account] as a WHERE a.name = 'SQLAlerts')
 	BEGIN
+		IF @verbose = 1
+			PRINT 'EXECUTE msdb.dbo.sysmail_add_account_sp  ';
 		EXECUTE msdb.dbo.sysmail_add_account_sp  
 			@account_name = 'SQLAlerts',  
 			@description = 'Mail account for alerts',  
@@ -43,10 +56,12 @@ BEGIN
 			@display_name = @DisplayName,  
 			@mailserver_name = 'relay.corporate.local';
 	END
-
+	
 	-- Create a Database Mail profile if NOT EXISTS 
 	IF NOT EXISTS ( SELECT * FROM msdb..sysmail_profile as p WHERE p.name = @@SERVERNAME )
 	BEGIN
+		IF @verbose = 1
+			PRINT 'EXECUTE msdb.dbo.sysmail_add_profile_sp ';
 		EXECUTE msdb.dbo.sysmail_add_profile_sp  
 			@profile_name = @@SERVERNAME,  
 			@description = 'Local default mail profile' ;
@@ -93,8 +108,6 @@ BEGIN
 			@profile_name = @@SERVERNAME,  
 			@principal_name = 'public',
 			@is_default = 1 ;
-
-		EXEC msdb.dbo.sp_send_dbmail @profile_name = @@SERVERNAME
 	END
 END;
 
@@ -102,34 +115,8 @@ END;
 -- Test Mail Profile by Sending Dummy Mail
 	EXEC msdb.dbo.sp_send_dbmail  
 		@profile_name = @@SERVERNAME,  
-		@recipients = 'ajay.dwivedi@tivo.com',  
+		@recipients = 'IT-Ops-DBA@tivo.com',  
 		--@copy_recipients = 'IT-Ops-DBA@tivo.com',
 		@body = 'This is Test Mail. Kindly verify the EMail Account and Display Name.',  
 		@subject = 'Test Mail for New SQLAlerts Account' ;
 
-/*
-
-(1 row affected)
-Msg 2627, Level 14, State 1, Procedure sysmail_add_principalprofile_sp, Line 35 [Batch Start Line 0]
-Violation of PRIMARY KEY constraint 'SYSMAIL_PRINCIPALPROFILE_ProfilePrincipalMustBeUnique'. Cannot insert duplicate key in object 'dbo.sysmail_principalprofile'. The duplicate key value is (1, 0x00).
-The statement has been terminated.
-Mail queued.
-
-
-(2 rows affected)
-Msg 2627, Level 14, State 1, Procedure sysmail_add_principalprofile_sp, Line 35 [Batch Start Line 7]
-Violation of PRIMARY KEY constraint 'SYSMAIL_PRINCIPALPROFILE_ProfilePrincipalMustBeUnique'. Cannot insert duplicate key in object 'dbo.sysmail_principalprofile'. The duplicate key value is (1, 0x00).
-The statement has been terminated.
-
-*/
-		
-/*
-EXEC sp_configure 'show advanced options', 1;  
-GO  
-RECONFIGURE;  
-GO  
-EXEC sp_configure 'Database Mail XPs', 1;  
-GO  
-RECONFIGURE  
-GO 
-*/
