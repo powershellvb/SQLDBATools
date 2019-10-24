@@ -21,6 +21,7 @@ https://github.com/imajaydwivedi/SQLDBATools
         [String]$ServerInstance
     )
 
+    Write-Verbose "Scanning TSQL script files to be executed";
     $SelfServiceModules_CleanUp_File = "$((Get-ItemProperty $PSScriptRoot).Parent.FullName)\SQLQueries\SelfServiceModules-Certificate Cleanup.sql";
     $SelfServiceModules_CleanUp_File_DBA = "$((Get-ItemProperty $PSScriptRoot).Parent.FullName)\SQLQueries\SelfServiceModules-Certificate Cleanup-DBA.sql";
     $SelfServiceModules_AllProcedures_File = "$((Get-ItemProperty $PSScriptRoot).Parent.FullName)\SQLQueries\SelfServiceModules-All-Procedures.sql";
@@ -52,8 +53,8 @@ https://github.com/imajaydwivedi/SQLDBATools
 
         $returnMessage = $rcMessage + $feMessage + $returnMessage;
 
-        Write-Host "$returnMessage" -ForegroundColor Red;
-        return;
+        Write-Verbose $returnMessage;
+        return $returnMessage;
     }
 
     Write-Verbose "Creating connection against [$ServerInstance] server";
@@ -71,6 +72,6 @@ https://github.com/imajaydwivedi/SQLDBATools
     Write-Verbose "Creating certificate and signing the modules. Code from file '$SelfServiceModules_SignModules_File'.";
     Invoke-DbaQuery -SqlInstance $ServerToken -File $SelfServiceModules_SignModules_File;
 
-    Write-Host "SelfServiceModules creation finished." -ForegroundColor Green;
-     
+    Write-Verbose "SelfServiceModules creation finished.";
+    return 0;
 }

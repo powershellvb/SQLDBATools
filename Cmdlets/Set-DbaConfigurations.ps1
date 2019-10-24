@@ -29,14 +29,14 @@
         https://github.com/imajaydwivedi/SQLDBATools
 
 #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='High')]
     Param(
         [Parameter(Mandatory=$true)]
         [Alias('Server','Instance')]
         [string]$SqlInstance
     )
 
-    Write-Verbose "SqlInstance = $SqlInstance";
+    $ServerName = $SqlInstance.Split('\')[0];
 
     # Create Database TSQL
     $tsql_CreateDb = @"
@@ -44,53 +44,68 @@ SET NOCOUNT ON;
 IF DB_ID('DBA') IS NULL
 	CREATE DATABASE DBA;
 "@;
-    Invoke-DbaQuery -SqlInstance $SqlInstance -Query $tsql_CreateDb;
+    Write-Verbose "Create if not exists [DBA] database";
+    Invoke-DbaQuery -SqlInstance $SqlInstance -Query $tsql_CreateDb -Verbose:$false | Out-Null;
+
+    # Set PowerPlan to High Performance
+    Write-Verbose "Make sure PowerPlan is set to 'High Performance'";
+    Set-DbaPowerPlan -ComputerName $ServerName -PowerPlan 'High Performance' -Verbose:$false | Out-Null;
+
+    # Grant User Rights Assignments Policy permissions for ServiceAccount
+    Write-Verbose "Grant User Rights Assignments Policy permissions for ServiceAccount";
+    Grant-SqlAccountRequiredPrivileges -SqlInstance $SqlInstance -Verbose:$false | Out-Null;
 
     # Set SQL Server Max Memory
-    Set-DbaMaxMemory -SqlInstance $SqlInstance;
+    Write-Verbose "Set Max SQL Server Memory to ideal value suggested by 'Test-DbaMaxMemory' cmdlet";
+    Set-DbaMaxMemory -SqlInstance $SqlInstance -WarningAction SilentlyContinue -Verbose:$false | Out-Null;
 
     # Set SQL Instance DOP
-    Set-DbaMaxDop -SqlInstance $SqlInstance;
+    Write-Verbose "Set Degree of Parallelism (DOP) to ideal value suggested by 'Test-DbaMaxDop' cmdlet";
+    Set-DbaMaxDop -SqlInstance $SqlInstance -WarningAction SilentlyContinue -Verbose:$false | Out-Null;
 
     # Configure Secondary Multiple TempDb Files
-    Set-DbaTempdbConfig -SqlInstance $SqlInstance -DataFileSize 8000;
-
+    Write-Verbose "Set TempDbConfiguration as per suggestions by 'Test-DbaTempDbConfig' cmdlet";
+    Set-DbaTempdbConfig -SqlInstance $SqlInstance -DataFileSize 8000 -WarningAction SilentlyContinue -Verbose:$false | Out-Null;
+    
     # Set Sql Instance Configurations
-    Set-DbaSpConfigure -SqlInstance $SqlInstance -Name XPCmdShellEnabled -Value 1;
-    Set-DbaSpConfigure -SqlInstance $SqlInstance -Name IsSqlClrEnabled -Value 1;
-    Set-DbaSpConfigure -SqlInstance $SqlInstance -Name CostThresholdForParallelism -Value 50;
-    Set-DbaSpConfigure -SqlInstance $SqlInstance -Name AdHocDistributedQueriesEnabled -Value 1;
-    Set-DbaSpConfigure -SqlInstance $SqlInstance -Name OptimizeAdhocWorkloads -Value 1;
-    Set-DbaSpConfigure -SqlInstance $SqlInstance -Name DatabaseMailEnabled -Value 1;
-    Set-DbaSpConfigure -SqlInstance $SqlInstance -Name RemoteDacConnectionsEnabled -Value 1;
+    Write-Verbose "Set CostThresholdForParallelism to 50";
+    Set-DbaSpConfigure -SqlInstance $SqlInstance -Name CostThresholdForParallelism -Value 50 -Verbose:$false;
+
+    Write-Verbose "Enable XPCmdShellEnabled, IsSqlClrEnabled, AdHocDistributedQueriesEnabled, OptimizeAdhocWorkloads, DatabaseMailEnabled, RemoteDacConnectionsEnabled";
+    Set-DbaSpConfigure -SqlInstance $SqlInstance `
+                        -Name XPCmdShellEnabled, IsSqlClrEnabled, AdHocDistributedQueriesEnabled, `
+                                OptimizeAdhocWorkloads, DatabaseMailEnabled, RemoteDacConnectionsEnabled `
+                        -Value $true -WarningAction SilentlyContinue -Verbose:$false | Out-Null;
 
     # Set Database Mail Account/Profile/Default Agent Profile
-    Set-DbaMailProfile -ServerInstance $SqlInstance 
+    Write-Verbose "Set MailProfile";
+    Set-DbaMailProfile -ServerInstance $SqlInstance -Verbose:$false;
 
     # Set Model database with Optimal Settings
-    Optimize-modelDatabase -SqlInstance $SqlInstance;
+    Write-Verbose "Set [model] database with Optimal Settings";
+    Optimize-modelDatabase -SqlInstance $SqlInstance -WarningAction SilentlyContinue -Verbose:$false | Out-Null;
 
     # Setup Self-Service Modules
-    Set-SelfServiceModules -SqlInstance $SqlInstance;
+    Write-Verbose "Create Self-Service Modules like sp_WhoIsActive, sp_HealthCheck, sp_Kill etc";
+    Set-SelfServiceModules -SqlInstance $SqlInstance -Verbose:$false | Out-Null;
 
     # Setup WhoIsActive Baselining
-    Set-BaselineWithWhoIsActive -ServerInstance $SqlInstance;
+    Write-Verbose "Setup WhoIsActive Baselining";
+    Set-BaselineWithWhoIsActive -ServerInstance $SqlInstance -Verbose:$false | Out-Null;
 
     # Compile Ola Scripts
-    Install-OlaHallengrenMaintenanceScripts -SqlInstance $SqlInstance;
+    Write-Verbose "Compile Ola Hallengren Maintenance Scripts";
+    Install-OlaHallengrenMaintenanceScripts -SqlInstance $SqlInstance -Verbose:$false | Out-Null;
+
+    # Create DBAGroup Operator
+    Write-Verbose "Create DBAGroup Operator";
+    Add-SqlAgentOperator -SqlInstance $SqlInstance -OperatorName 'DBAGroup' -EmailId 'It-Ops-DBA@tivo.com' -Verbose:$false | Out-Null;
 
     # Setup IndexOptimize Jobs
-    Set-IndexOptimizeJobs -SqlInstance $SqlInstance;
+    Write-Verbose "Create IndexOptimize Jobs";
+    Set-IndexOptimizeJobs -SqlInstance $SqlInstance -Verbose:$false | Out-Null;
+
+    # Setup DatabaseBackup Jobs
+    Write-Verbose "Create DatabaseBackup Jobs";
+    Set-DatabaseBackupJobs -SqlInstance $SqlInstance -Verbose:$false | Out-Null;
 }
-<#
-    DBA Database -> Ola, LogWalk Objects, Login Permission Issue Tracking
-    Add to Inventory - ServerInfo, InstanceInfo, VolumeInfo, DatabaseInfo
-    Job History 270 days
-    Use master
-    GO
-    /* 0 = Allow Local Connection, 1 = Allow Remote Connections*/ 
-    sp_configure 'remote admin connections', 1 
-    GO
-    RECONFIGURE
-    GO
-#>

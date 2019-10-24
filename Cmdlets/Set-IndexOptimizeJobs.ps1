@@ -13,7 +13,7 @@ The command creates 3 parallel IndexOptimize & 1 IndexOptimize_Modified jobs on 
 .LINK
 https://github.com/imajaydwivedi/SQLDBATools
 #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='High')]
     Param (
         [Parameter(Mandatory=$true)]
         [Alias('Instance')]
@@ -21,9 +21,14 @@ https://github.com/imajaydwivedi/SQLDBATools
     )
 
     $conn = Connect-DbaInstance -SqlInstance $SqlInstance -Database DBA;
+
+    Write-Verbose "Scanning TSQL Script files that IndexOptimize Job creation code";
     $IndexOptimize_File = "$((Get-ItemProperty $PSScriptRoot).Parent.FullName)\SQLQueries\ola.hallengren.Job.IndexOptimize.sql";
     $IndexOptimize_Modified_File = "$((Get-ItemProperty $PSScriptRoot).Parent.FullName)\SQLQueries\ola.hallengren.Job.IndexOptimize_Modified.sql";
-    Invoke-DbaQuery -SqlInstance $conn -File @($IndexOptimize_File,$IndexOptimize_Modified_File) -ErrorAction Continue;
 
-    Write-Host "Files '$IndexOptimize_File' & '$IndexOptimize_Modified_File' are executed successfully.";
+    if($PSCmdlet.ShouldProcess($SqlInstance)) {
+        Invoke-DbaQuery -SqlInstance $conn -File @($IndexOptimize_File,$IndexOptimize_Modified_File) -ErrorAction Continue -WarningAction SilentlyContinue;
+        Write-Verbose "Files '$IndexOptimize_File' & '$IndexOptimize_Modified_File' are executed successfully.";
+        return 0;
+    }
 }

@@ -2,7 +2,7 @@
     Module Name:-   SQLDBATools
     Created By:-    Ajay Kumar Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
-    Modified Date:- 21-Oct-2019
+    Modified Date:- 24-Oct-2019
     Version:-       0.0
 #>
 
@@ -15,9 +15,8 @@ if($verbose)
 }
 Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
 
-Write-Verbose "====================================================";
-Write-Verbose "Kindly import 'dbatools' powershell module..";
-Write-Verbose "====================================================";
+#Write-Verbose "Importing SqlServer & dbatools Module";
+#Import-Module SqlServer, dbatools;
 
 # Check for ActiveDirectory module
 if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }) -eq $null ) 
@@ -60,6 +59,7 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Add-CollectionError.ps1
 . $PSScriptRoot\Cmdlets\Add-HostsEntry.ps1
 . $PSScriptRoot\Cmdlets\Add-ServerInfo.ps1
+. $PSScriptRoot\Cmdlets\Add-SqlAgentOperator.ps1
 . $PSScriptRoot\Cmdlets\Add-SqlInstanceInfo.ps1
 . $PSScriptRoot\Cmdlets\Add-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Cmdlets\Add-SecurityCheckInfo.ps1
@@ -94,6 +94,7 @@ if($verbose)
 #. $PSScriptRoot\Get-SQLInstance.ps1
 . $PSScriptRoot\Cmdlets\Get-VolumeSpaceConsumers.ps1
 . $PSScriptRoot\Cmdlets\Get-WhoIsActive.ps1
+. $PSScriptRoot\Cmdlets\Grant-SqlAccountRequiredPrivileges.ps1
 . $PSScriptRoot\Cmdlets\Install-OlaHallengrenMaintenanceScripts.ps1
 . $PSScriptRoot\Cmdlets\Install-SqlInstance.ps1
 . $PSScriptRoot\Cmdlets\Invoke-CommandMultiThreaded.ps1
@@ -108,15 +109,17 @@ if($verbose)
 #. $PSScriptRoot\Cmdlets\Restart-WinRM.ps1
 . $PSScriptRoot\Cmdlets\Select-ServerInfo.ps1
 . $PSScriptRoot\Cmdlets\Send-SQLMail.ps1
-. $PSScriptRoot\Cmdlets\Set-DbaConfigurations.ps1
-. $PSScriptRoot\Cmdlets\Set-IndexOptimizeJobs.ps1
-. $PSScriptRoot\Cmdlets\Set-Owner.ps1
 . $PSScriptRoot\Cmdlets\Set-BaselineWithWhoIsActive.ps1
+. $PSScriptRoot\Cmdlets\Set-DatabaseBackupJobs.ps1
+. $PSScriptRoot\Cmdlets\Set-DbaConfigurations.ps1
 . $PSScriptRoot\Cmdlets\Set-DbaLogWalk.ps1
 . $PSScriptRoot\Cmdlets\Set-DbaMailProfile.ps1
+. $PSScriptRoot\Cmdlets\Set-IndexOptimizeJobs.ps1
+. $PSScriptRoot\Cmdlets\Set-Owner.ps1
 . $PSScriptRoot\Cmdlets\Set-ServiceBroker_4_LogWalkAlert.ps1
 . $PSScriptRoot\Cmdlets\Set-SelfServiceModules.ps1
 . $PSScriptRoot\Cmdlets\Set-ServerState.ps1
+. $PSScriptRoot\Cmdlets\Set-SQLServiceState.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMFirewallRule.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMListener.ps1
 #. $PSScriptRoot\Cmdlets\Set-WinRMStartup.ps1
@@ -128,5 +131,5 @@ Push-Location;
 
 <#
 Remove-Module SQLDBATools -ErrorAction SilentlyContinue;
-Import-Module SQLDBATools
+Import-Module SQLDBATools, SqlServer, dbatools
 #>

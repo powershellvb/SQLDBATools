@@ -12,14 +12,12 @@ This command sets model databse to Simple recovery and modifies its data/log fil
 .LINK
 https://github.com/imajaydwivedi/SQLDBATools
 #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='High')]
     Param (
         [Parameter(Mandatory=$true)]
         [Alias('Server','Instance')]
         [string]$SqlInstance
     )
-
-    Write-Verbose "SqlInstance = $SqlInstance";
 
     # Tsql - Modify model database
     $tsql_Model = @"
@@ -32,6 +30,8 @@ GO
 ALTER DATABASE [model] MODIFY FILE ( NAME = N'modellog', SIZE = 204800KB , FILEGROWTH = 204800KB )
 GO
 "@;
-
-    Invoke-DbaQuery -SqlInstance $SqlInstance -Query $tsql_Model;
+    if($PSCmdlet.ShouldProcess("$SqlInstance")) {
+        Write-Verbose "Set [model] database recovery mode to simple. Also, change initial Size and autogrowth appropriately";
+        Invoke-DbaQuery -SqlInstance $SqlInstance -Query $tsql_Model | Out-Null;
+    }
 }

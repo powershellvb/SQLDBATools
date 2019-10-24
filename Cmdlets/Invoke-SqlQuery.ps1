@@ -11,8 +11,6 @@
         [String]$Query
     )
     
-    #$Server = 'TUL1DBAPMTDB1'    
-    #$database = 'SQLDBATools'
     $Connection = New-Object System.Data.SQLClient.SQLConnection;
     $Connection.ConnectionString = "server=$($ServerInstance);database=$($Database);trusted_connection=true;"
     $Connection.Open();

@@ -1,23 +1,22 @@
 ﻿Function Set-BaselineWithWhoIsActive {
 <#
 .SYNOPSIS
-This function creates master..sp_WhoIsActive, master..sp_HealthCheck, master..sp_kill & DBA..dbo.usp_WhoIsActive_Blocking
+This function creates baselining of server using sp_WhoIsActive monitoring procedue
 .DESCRIPTION
-This function drops and recreates procedures master..sp_WhoIsActive, master..sp_HealthCheck, master..sp_kill & DBA..dbo.usp_WhoIsActive_Blocking. 
-Once created, the procedures are Certificate signed using login [CodeSigningLogin] so that users of [public] role are able to execute these objects.
-.PARAMETER ServerInstance
-Sql Server Instance against which self service modules are to be created    
+This function creates 2 jobs named [DBA - Log_With_sp_WhoIsActive] and [DBA - Log_With_sp_WhoIsActive - Cleanup] to capture what is running on server with default frequency of 15 minutes.
+.PARAMETER SqlInstance
+Sql Server Instance where whoIsActive baselining has to be setup.
 .EXAMPLE
-Set-SelfServiceModules -ServerInstance 'testvm'
-The command creates master..sp_WhoIsActive, master..sp_HealthCheck, master..sp_kill & DBA..dbo.usp_WhoIsActive_Blocking on Sql instance 'testvm'.
+Set-BaselineWithWhoIsActive -SqlInstance 'testvm'
+The command creates 2 jobs named [DBA - Log_With_sp_WhoIsActive] and [DBA - Log_With_sp_WhoIsActive - Cleanup] on Sql instance 'testvm'.
 .LINK
 https://github.com/imajaydwivedi/SQLDBATools
 #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='High')]
     Param (
         [Parameter(Mandatory=$true)]
-        [Alias('SqlInstance')]
-        [String]$ServerInstance
+        [Alias('ServerInstance')]
+        [String]$SqlInstance
     )
 
     $tsqlQuery = @"
@@ -28,8 +27,10 @@ https://github.com/imajaydwivedi/SQLDBATools
 "@;
     $abort = $false;
     $runningCode = $null;
-    $Conn = Connect-DbaInstance -SqlInstance testvm -Database DBA;
+    $Conn = Connect-DbaInstance -SqlInstance $SqlInstance -Database DBA;
     $friendlyErrorMessage = "Kindly make sure [DBA] database is created before you execute this cmdlet.";
+
+    Write-Verbose "Verify if [DBA] database exists";
     $exists = Invoke-DbaQuery -SqlInstance $Conn -Query $tsqlQuery | Select-Object -ExpandProperty Exists;
     if([string]::IsNullOrEmpty($exists) -eq $true -or $exists -eq 0) {
         $abort = $true;
@@ -47,8 +48,8 @@ https://github.com/imajaydwivedi/SQLDBATools
 
         $returnMessage = $rcMessage + $feMessage + $returnMessage;
 
-        Write-Host "$returnMessage" -ForegroundColor Red;
-        return;
+        Write-Verbose "$returnMessage";
+        return $returnMessage;
     }
 
     $exists = $null;
@@ -60,6 +61,8 @@ https://github.com/imajaydwivedi/SQLDBATools
 "@;
     $runningCode = $null;
     $friendlyErrorMessage = "Kindly make sure self help stored procedures like sp_HealthCheck/sp_WhoIsActive/sp_Kill/usp_WhoIsActive_Blocking are created using 'Set-SelfServiceModules' cmdlet.";
+
+    Write-Verbose "Verify if Self-Service modules are present";
     $exists = Invoke-DbaQuery -SqlInstance $Conn -Query $tsqlQuery | Select-Object -ExpandProperty Exists;
     if([string]::IsNullOrEmpty($exists) -eq $true -or $exists -eq 0) {
         $abort = $true;
@@ -77,13 +80,17 @@ https://github.com/imajaydwivedi/SQLDBATools
 
         $returnMessage = $rcMessage + $feMessage + $returnMessage;
 
-        Write-Host "$returnMessage" -ForegroundColor Red;
-        return;
+        Write-Verbose "$returnMessage";
+        return $returnMessage;
     }
 
+    Write-Verbose "Scanning TSQL script file to execute";
     $whoIsActive_Baselining_File = "$((Get-ItemProperty $PSScriptRoot).Parent.FullName)\SQLQueries\Baselining-with-sp_WhoIsActive.sql";
 
-    Invoke-DbaQuery -SqlInstance $Conn -File $whoIsActive_Baselining_File;
-    
-    Write-Host "SQL Agent Jobs [DBA - Log_With_sp_WhoIsActive] & [DBA - Log_With_sp_WhoIsActive - Cleanup] are created along with table [DBA]..[WhoIsActive_ResultSets].`r`n Kindly verify the jobs schedule, and test them by manual execution." -ForegroundColor Green;
+    if($PSCmdlet.ShouldProcess("$SqlInstance")) {
+        Write-Verbose "Setting WhoIsActive baselining";
+        Invoke-DbaQuery -SqlInstance $Conn -File $whoIsActive_Baselining_File;    
+        Write-Verbose "SQL Agent Jobs [DBA - Log_With_sp_WhoIsActive] & [DBA - Log_With_sp_WhoIsActive - Cleanup] are created along with table [DBA]..[WhoIsActive_ResultSets].`r`n Kindly verify the jobs schedule, and test them by manual execution.";
+        return 0;
+    }
 }

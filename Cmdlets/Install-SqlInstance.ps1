@@ -24,9 +24,12 @@
     Path on target Server where the SQL Server setup would be copied from Inventory.
     .PARAMETER ModifyConfigFile
     With this switch, Installation will allow to change the settings like data/log/tempdb/root directories inside ConfigurationFile.ini file before Sql Installation.
+    .PARAMETER PerformDBAConfigurations
+    With this switch, Post Installation, all the DBA configurations will be applied through function Set-DbaConfigurations.
     .EXAMPLE
-    Install-SqlInstance -ServerName 'testvm' -Version 2014 -Edition 'Developer'
+    Install-SqlInstance -ServerName 'testvm' -Version 2014 -Edition 'Developer' -PerformDBAConfigurations
     This command will install SQL Server 2014 Developer edition as default instance on server 'testvm' with all other default parameter values.
+    Also perform DBA configurations like adding DBA database, optimizing settings of model database etc. To perform this, a call to Set-DbaConfigurations is made.
     .EXAMPLE
     Install-SqlInstance -ServerName 'testvm' -Version 2014 -Edition 'Developer' -SQLServiceAccount 'Corporate\ProdSQL'
     This command will install SQL Server 2014 Developer edition as default instance on server 'testvm' using 'Corporate\ProdSQL' as service account with all other default parameter values.
@@ -70,12 +73,19 @@
         [string] $SetupParentFolderOnTarget = 'C:\',
 
         [Parameter(Mandatory=$false)]
-        [switch] $ModifyConfigFile
+        [switch] $ModifyConfigFile,
+
+        [Parameter(Mandatory=$false)]
+        [Alias('PerformPostInstallationSteps')]
+        [switch] $PerformDBAConfigurations,
+
+        [Parameter(Mandatory=$false)]
+        [switch] $RebootIfRequired
     )
 
     if($SetupParentFolderOnTarget.EndsWith('\') -eq $false){$SetupParentFolderOnTarget += '\'};
 
-    Write-Verbose "Creating credentail for SQLDBATools for PSRemoting";
+    Write-Verbose "Creating credential for SQLDBATools for PSRemoting";
 
     # File Path for Credentials & Key
     $SQLDBATools = Get-Module -ListAvailable -Name SQLDBATools | Select-Object -ExpandProperty ModuleBase;
@@ -137,8 +147,6 @@
         # Start Sql Server Installation
         Set-Location "$($SetupFolder_Local)$Edition\";
 
-        Write-Debug "About to start .\AutoBuild.ps1";
-
         Write-Verbose "Starting SQL Server setup from path '$($SetupFolder_Local)$Edition\' ..";
         Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process | Out-Null;
         . .\AutoBuild.ps1; AutoBuild -SQLServiceAccount $SQLServiceAccount -InstanceName $InstanceName -SQLServiceAccountPassword $SQLServiceAccountPassword -SAPassword $SAPassword -Administrators $Administrators;
@@ -147,7 +155,52 @@
     if($PSCmdlet.ShouldProcess("$ServerName")) {
         Invoke-Command -ComputerName $ServerName -ScriptBlock $scriptBlock -ConfigurationName SQLDBATools -ErrorVariable err;
     }
-    #Get-Service *winrm* -ComputerName $ServerName | Start-Service
     
-    Write-Verbose "PSRemoting Session ended.";
+    Write-Verbose "Installation portion ended.";
+
+    if($RebootIfRequired) {
+        Write-Verbose "Rebooting server $ServerName using Set-ServerState";
+        Set-ServerState -ServerName $ServerName -Reboot -Force;
+
+        $SQLServiceName = if($InstanceName -eq 'MSSQLSERVER'){'MSSQLSERVER'}ELSE{"MSSQL`$$InstanceName"}
+        $EndTime = (Get-Date).AddMinutes(10);
+        Do {
+            Start-Sleep -Seconds 20;
+            try {
+                $SQLService = Get-WmiObject win32_service -ComputerName $ServerName -Filter "name='$SQLServiceName'" -ErrorAction Stop -ErrorVariable err;
+            } catch {
+                if($err.ErrorRecord.Exception.Message.Contains('The RPC server is unavailable')){
+                    Write-Verbose "Server is stil rebooting";
+                }                
+            }
+        } while($EndTime.CompareTo([System.DateTime]::Now) -gt 0 -and [string]::IsNullOrEmpty($SQLService)); # Wait for 5 minutes
+
+        Write-Verbose "Server is up again after reboot"
+    }
+
+    if($PerformDBAConfigurations) {
+        Write-Verbose "Proceeding for Post Instalaltion Configurations using Set-DbaConfigurations";
+        Set-DbaConfigurations -SqlInstance $SqlInstance        
+    }
+
+    if($RebootIfRequired) {
+        Write-Verbose "Rebooting server $ServerName using Set-ServerState";
+        Set-ServerState -ServerName $ServerName -Reboot -Force;
+        
+        $SQLServiceName = if($InstanceName -eq 'MSSQLSERVER'){'MSSQLSERVER'}ELSE{"MSSQL`$$InstanceName"}
+        $EndTime = (Get-Date).AddMinutes(10);
+        Do {
+            Start-Sleep -Seconds 20;
+            try {
+                $SQLService = Get-WmiObject win32_service -ComputerName $ServerName -Filter "name='$SQLServiceName'" -ErrorAction Stop -ErrorVariable err;
+            } catch {
+                if($err.ErrorRecord.Exception.Message.Contains('The RPC server is unavailable')){
+                    Write-Verbose "Server is stil rebooting";
+                }                
+            }
+        } while($EndTime.CompareTo([System.DateTime]::Now) -gt 0 -and [string]::IsNullOrEmpty($SQLService)); # Wait for 5 minutes
+
+        Write-Verbose "Server is up again after reboot"
+        Write-Output "Configuration of server is complete";
+    }
 }

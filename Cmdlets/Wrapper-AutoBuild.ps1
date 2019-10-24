@@ -1,48 +1,90 @@
-﻿<# 
-https://docs.microsoft.com/en-us/powershell/module/microsoft.powershell.core/about/about_remote_variables?view=powershell-6#using-splatting
-Install-Module -Name CredentialManagement -Scope AllUsers;
-Add-StoredCredentials -Target 'DevSQL' -UserName 'Contso\SQLServices' -Password 'Pa$$w0rd';
-Add-StoredCredentials -Target 'SQL_sa' -UserName 'sa' -Password 'Pa$$w0rd';
+﻿function Install-SqlInstance {
+<#
+    .SYNOPSIS
+    This function installs and configures SQL Server on computer
+    .DESCRIPTION
+    This function take ServerName, SQLServiceAccount, InstanceName etc are parameters, and installl SQL Server on Server.
+    .PARAMETER ServerName
+    Name of the Server where SQL Services will be installed
+    .PARAMETER SQLServiceAccount
+    SQL Server Service account to choose out of "Corporate\DevSQL", "Corporate\ProdSQL" and "Corporate\QASQL". By default 'Corporate\DevSQL' is passed.
+    .InstanceName
+    Name of the Instance. By default assumed to be default installation 'MSSQLSERVER'.
 #>
-cls
+    [CmdletBinding()]
+    Param(
+        [Parameter(Mandatory=$true)]
+        [Alias('ComputerName')]
+        [String]$ServerName,
 
-$ServerName = 'testvm4'; # INPUT 01
-$SQLServiceAccount = 'Corporate\DevSQL'; # INPUT 02
-$SetupFolder = 'E:\Developer' # INPUT 03
+        [Parameter(Mandatory=$true)]
+        [ValidateSet(2014, 2016, 2017, 2019)]
+        [String] $Version = 2014,
 
-$StartTime = Get-Date;
-$ssn = New-PSSession -ComputerName $ServerName;
-$SQLServiceAccountPassword = (Get-StoredCredentials -Target ($SQLServiceAccount.Split('\')[1]) | Select-Object -ExpandProperty Password) | Show-Password;
-$SAPassword = ((Get-StoredCredentials -Target 'SQL_sa').Password | Show-Password);
-$Params = @{
-            InstanceName = "MSSQLSERVER";
-            SQLServiceAccount = $SQLServiceAccount;
-            SQLServiceAccountPassword = $SQLServiceAccountPassword;
-            SAPassword = $SAPassword;
-            Administrators = "Corporate\SQL Admins";
-            #SqlSetupPath = $SetupFolder
+        [Parameter(Mandatory=$true)]
+        [ValidateSet('Developer','Enterprise','Standard','Express')]
+        [String] $Edition = 'Developer',
+
+        [Parameter(Mandatory=$false)]
+        [ValidateSet("Corporate\DevSQL", "Corporate\ProdSQL", "Corporate\QASQL")]
+        [string] $SQLServiceAccount = 'Corporate\DevSQL',
+
+        [Parameter(Mandatory=$false)]
+        [string] $InstanceName = 'MSSQLSERVER',
+
+        [Parameter(Mandatory=$false)]
+        [string] $SQLServiceAccountPassword,
+
+        [Parameter(Mandatory=$false)]
+        [string] $SAPassword,
+
+        [Parameter(Mandatory=$false)]
+        [string] $Administrators = 'Corporate\SQL Admins'        
+    )
+
+    $SQL_Server_Setups = '\\tul1it1\it\SQL_Server_Setups';
+
+    Write-Verbose "Creating credentail for SQLDBATools for PSRemoting";
+
+    # File Path for Credentials & Key
+    $SQLDBATools = Get-Module -ListAvailable -Name SQLDBATools | Select-Object -ExpandProperty ModuleBase;
+    $AESKeyFilePath = "$SQLDBATools\SQLDBATools_AESKey.key";
+    $credentialFilePath = "$SQLDBATools\SQLDBATools_Credentials.xml";
+    $SQL_Server_Setups = '\\tul1it1\it\SQL_Server_Setups\';
+    [string]$userName = 'Corporate\SQLDBATools'
+
+    # Create credential Object
+    $AESKey = Get-Content $AESKeyFilePath;
+    $pwdTxt = (Import-Clixml $credentialFilePath | Where-Object {$_.UserName -eq $userName}).Password;
+    [SecureString]$securePwd = $pwdTxt | ConvertTo-SecureString -Key $AESKey;
+    [PSCredential]$credentialObject = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $securePwd;
+
+    Write-Verbose "Registering PSSessionConfiguration for SQLDBATools";
+    # Create PSSessionConfig
+    #Invoke-Command -ComputerName $ServerName -ScriptBlock { Register-PSSessionConfiguration -Name SQLDBATools -RunAsCredential $Using:credentialObject -Force -WarningAction Ignore}
+
+    Write-Verbose "Starting PSRemoting Session to perform SQL Installation";
+    $scriptBlock = {
+        $SQL_Server_Setups = $Using:SQL_Server_Setups;
+        $Version = $Using:Version;
+        $Edition = $Using:Edition;
+        $SetupFolder = "$SQL_Server_Setups\$Version\$Edition";
+        $SetupFolder_Local = "C:\";
+
+        # Copy Setup File
+        Write-Output "Copying SQL Server setup from path '$SetupFolder' to '$SetupFolder_Local' ..";
+        Copy-Item $SetupFolder -Destination $SetupFolder_Local -Recurse -Force;    
+    }
+    #$scriptBlock = {$env:COMPUTERNAME}
+    #Invoke-Command -ComputerName $ServerName -ScriptBlock $scriptBlock -ConfigurationName SQLDBATools -ErrorVariable err;
+    $VerbosePreference;
+    Invoke-Command -ComputerName $ServerName -ScriptBlock $scriptBlock -ConfigurationName SQLDBATools -ErrorVariable err;
+    
+    Write-Host $err;
+    #Get-Service *winrm* -ComputerName $ServerName | Start-Service
+
+    Write-Verbose "PSRemoting Session ended.";
 }
-$ScriptBlock = {
-    Start-Process powershell -Verb runAs;
-    $Params = $Using:Params;
-    $SetupFolder = $Using:SetupFolder;
-    Set-Location -Path $SetupFolder;
-    #runas /user:administrator "C:\Users\TechSpot\Desktop\file.exe"
-    .\AutoBuild.ps1 @Params
-}
-# Install SQL Server
-$rs = $null;
-#$rs = 
-Invoke-Command -Session $ssn -ScriptBlock $ScriptBlock
-$outputFile = "C:\temp\SQL-Install-on-$ServerName.txt";
-$rs | Out-File -FilePath $outputFile -Force;
 
-notepad $outputFile
-
-$EndTime_Install = Get-Date;
-
-Write-Host "Start Time: $StartTime";
-Write-Host "Installation finish Time: $EndTime_Install";
-
-Remove-PSSession $ssn
-Get-PSSession | Remove-PSSession
+$ServerName = 'TUL1SQLPOC01'; $Version = 2014; $Edition = 'Developer';
+Install-SqlInstance -ServerName $ServerName -Version 2014 -Edition Developer -Verbose;

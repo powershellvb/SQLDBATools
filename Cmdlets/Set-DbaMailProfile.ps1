@@ -16,39 +16,41 @@ This command creates database mail account 'sqlalerts@tivo.com' for profile 'TES
 .LINK
 https://github.com/imajaydwivedi/SQLDBATools
 #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='High')]
     Param (
         [Parameter(Mandatory=$true)]
-        [Alias('SqlInstance')]
-        [String]$ServerInstance
+        [Alias('ServerInstance')]
+        [String]$SqlInstance
     )
 
     $mailProfileTSQLScriptFile = "$((Get-ItemProperty $PSScriptRoot).Parent.FullName)\SQLQueries\DatabaseMailProfile.sql";
-    Write-Verbose "Server name: $ServerInstance";
-    Write-Verbose $mailProfileTSQLScriptFile;
+    #Write-Verbose $mailProfileTSQLScriptFile;
     try 
     {
-        Invoke-DbaQuery -ServerInstance $ServerInstance -Database msdb -InputFile $mailProfileTSQLScriptFile -ErrorAction Stop;
+        if($PSCmdlet.ShouldProcess("$SqlInstance")) {
+            Invoke-DbaQuery -ServerInstance $SqlInstance -Database msdb -InputFile $mailProfileTSQLScriptFile -ErrorAction Stop;
 
-        $srv = New-Object -TypeName Microsoft.SqlServer.Management.SMO.Server("$ServerInstance");
-        $sm = $srv.Mail.Profiles | Where-Object {$_.Name -eq $ServerInstance};
-        $srv.JobServer.AgentMailType = 'DatabaseMail';
-        $srv.JobServer.DatabaseMailProfile = $sm.Name;
-        $srv.JobServer.Alter();
+            $srv = New-Object -TypeName Microsoft.SqlServer.Management.SMO.Server("$SqlInstance");
+            $sm = $srv.Mail.Profiles | Where-Object {$_.Name -eq $SqlInstance};
+            $srv.JobServer.AgentMailType = 'DatabaseMail';
+            $srv.JobServer.DatabaseMailProfile = $sm.Name;
+            $srv.JobServer.Alter();
 
-        Write-Host "Success($ServerInstance): Mail profile script successfully executed. Pls check for test mail" -ForegroundColor Green;
+
+            Write-Verbose "Success($SqlInstance): Mail profile script successfully executed. Pls check for test mail";
+        }
     }
     catch
     {
-        Write-Host "Error($ServerInstance): Failure while executing SQL code from file $mailProfileTSQLScriptFile" -ForegroundColor Red;
+        Write-Error "Error($SqlInstance): Failure while executing SQL code from file $mailProfileTSQLScriptFile";
         $ErrorMessage = $_.Exception.Message
         $FailedItem = $_.Exception.ItemName
-
-        @"
+        $ReturnMessage = @"
 
 $FailedItem => 
     $ErrorMessage
 ====================================
 "@
+        Write-Error $ReturnMessage;
     }
 }

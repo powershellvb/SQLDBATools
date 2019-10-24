@@ -19,20 +19,23 @@
         https://github.com/imajaydwivedi/SQLDBATools
 
 #>
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='High')]
     Param(
         [Parameter(Mandatory=$true)]
-        [Alias('Server','Instance','ServerInstance')]
+        [Alias('ServerInstance')]
         [string]$SqlInstance
     )
-
-    Write-Verbose "SqlInstance = $SqlInstance";
-
     $srv = Connect-DbaInstance -SqlInstance $SqlInstance -Database DBA
 
-    $All_Scripts = (Get-Module -Name SQLDBATools -ListAvailable).ModuleBase + "\SQLQueries\ola.hallengren.MaintenanceSolution.sql";
-    Invoke-DbaQuery -SqlInstance $srv -File $All_Scripts -Database 'DBA'; 
+    if($PSCmdlet.ShouldProcess($SqlInstance)) {
+        Write-Verbose "Scanning required Ola Hallengren Maintenance Solution scripts on disk";
+        $All_Scripts = (Get-Module -Name SQLDBATools -ListAvailable).ModuleBase + "\SQLQueries\ola.hallengren.MaintenanceSolution.sql";
+        Invoke-DbaQuery -SqlInstance $srv -File $All_Scripts -Database 'DBA'; 
     
-    $Modified_Scripts = (Get-Module -Name SQLDBATools -ListAvailable).ModuleBase + "\SQLQueries\ola.hallengren.IndexOptimize_Modified.sql";
-    Invoke-DbaQuery -SqlInstance $srv -File $Modified_Scripts -Database 'DBA'; 
+        $Modified_Scripts = (Get-Module -Name SQLDBATools -ListAvailable).ModuleBase + "\SQLQueries\ola.hallengren.IndexOptimize_Modified.sql";
+        Invoke-DbaQuery -SqlInstance $srv -File $Modified_Scripts -Database 'DBA';
+
+        Write-Verbose "Ola Hallengren Scripts compiled successfully on [DBA] database";
+        return 0;
+    }
 }

@@ -115,7 +115,7 @@ END;
 -- Test Mail Profile by Sending Dummy Mail
 	EXEC msdb.dbo.sp_send_dbmail  
 		@profile_name = @@SERVERNAME,  
-		@recipients = 'IT-Ops-DBA@tivo.com',  
+		@recipients = 'ajay.dwivedi@tivo.com',  
 		--@copy_recipients = 'IT-Ops-DBA@tivo.com',
 		@body = 'This is Test Mail. Kindly verify the EMail Account and Display Name.',  
 		@subject = 'Test Mail for New SQLAlerts Account' ;
