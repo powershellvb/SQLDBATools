@@ -9,7 +9,9 @@ ALTER PROCEDURE [dbo].[usp_DBARestoreBkup]
 	@LocalLocation varchar(100) = 'f:\dump\',			-- Location of the standby file on the subscriber
 	@DataFilesDirectory varchar(255) = NULL,		-- Location where data files have to be moved
 	@LogFilesDirectory varchar(255) = NULL,		-- Location where log files have to be moved
-	@StandBy bit = 1						-- Set the database to StandBy mode, otherwise make it READWRITE mode
+	@SetStandBy bit = 0,						-- Set the database to StandBy mode, otherwise make it READWRITE mode
+	@SetReadOnly bit = 0					-- Set the database to ReadOnly mode, otherwise make it READWRITE mode
+	,@Verbose bit = 0
 AS
 BEGIN
 /*
@@ -22,12 +24,17 @@ BEGIN
 				This proc will try to restore a database from a bkup located in the @SourceLocation location. 
 
 		Example: Exec usp_DBARestoreBkup 'AMG_Extra','AMG_Extra', '\\tul1cipcnpdb1\f$\dump\archive\', 'f:\dump\' 
+				 Exec usp_DBARestoreBkup 'AMG_Extra','AMG_Extra', '\\tul1cipcnpdb1\f$\dump\archive\', 'f:\dump\', @SetReadOnly = 1, @Verbose = 1
 
 	Modifications:	July 09, 2019 - Ajay Dwivedi
 					Add parameters to accept data/log files location, and take existing files in consideration
+					Nov 11, 2019 - Renuka Chopra
+					Add parameters to set ReadOnly
 */
 
 	SET NOCOUNT ON
+	IF @Verbose = 1
+		PRINT 'Declaring Variables/Tables';
 	declare @LastFileApplied varchar(100)
 	declare @execstr varchar(1000)
 	declare @file TABLE (filename varchar(500))
@@ -76,7 +83,14 @@ BEGIN
 	declare @dbFileCounter int = 0;
 	declare @_logicalName varchar(125);
 	declare @_physicalName varchar(225);
-
+	
+	IF @Verbose = 1
+		PRINT 'Validating parameters @SetStandBy & @SetReadOnly ';
+	IF @SetStandBy = 1 AND @SetReadOnly =1
+	BEGIN
+		RAISERROR ('Parameters @SetStandBy & @SetReadOnly are not compatible. Kindly use only one of them.', 17, 1);  
+		return;
+	END
 
 	if OBJECT_ID('DBALastFileApplied') is null	--Create table if it does not exist
 		begin
@@ -88,20 +102,36 @@ BEGIN
 			)
 		end
 
+	IF @Verbose = 1
+		PRINT 'Creating @execstr';
 	-- AMG_avg_data.bak
 	set @execstr = 'exec xp_cmdshell ''dir ' + @SourceLocation + '*' + @sourceDbname + '_FULL* /od /b '''
 	insert @file exec (@execstr)
 	set @execstr = 'exec xp_cmdshell ''dir ' + @SourceLocation + '*' + @sourceDbname + '_data* /od /b '''
+
+	IF @Verbose = 1
+	BEGIN
+		PRINT '@execstr =>'+char(10)+char(13)+@execstr;
+		PRINT 'Populating table @file';
+	END
+
 	insert @file exec (@execstr)
 
+	IF @Verbose = 1
+		select '@file' as RunningTable, * from @file;
+
+	IF @Verbose = 1
+		PRINT 'Deleting non-significant rows from @file table';
 	delete from @file where filename is null				-- Delete the extra NULL record created by the dir command
 	delete from @file where filename = 'File not found'	
 	
 	if not exists (Select * from @file)
-		begin
-			print 'No files to process'
-			return
-		end
+	begin
+		if @Verbose = 1
+			print 'Checking if there are files found in @file table to be processed'
+		print 'No files to process'
+		return
+	end
 	--If (select COUNT(*) from @file) > 1
 	--	begin
 	--	   set @msgstr = 'There is more than one db bkup file for ' + @sourceDbname + ' in the source location ' + @sourceLocation + '.'
@@ -109,9 +139,16 @@ BEGIN
 	--		Raiserror(@msgstr, 11, 1)
 	--		return
 	--	end
+	
 	select @LastFileApplied =  MAX(filename) from @file;
+	IF @Verbose = 1
+	begin
+		print '@LastFileApplied => '+@LastFileApplied;
+	end
 
 	-- fetch existing files locations
+	IF @Verbose = 1
+		PRINT 'Fetching existing Data/Log file locations'
 	insert #DbFiles_Existing (dbName, fileType, logicalName, physicalName)
 	select db_name(mf.database_id) as dbName, type_desc as fileType, name as logicalName, physical_name as physicalName
 			--,REPLACE(physical_name,RIGHT(physical_name,CHARINDEX('\',REVERSE(physical_name))-1),'')
@@ -119,16 +156,27 @@ BEGIN
 	from sys.master_files mf where mf.database_id = DB_ID(@destDbname);
 
 	-- read backup file metadata
+	IF @Verbose = 1
+		PRINT 'Reading backup file '''+@sourceLocation + @LastFileApplied+''' metadata'+char(10)+char(13)+' and populating table @Backup_File_Details';
 	SET @execstr = 'restore filelistonly from disk = '''+ @sourceLocation + @LastFileApplied + '''';
 	--print @execstr;
 	INSERT INTO @Backup_File_Details
 	EXEC (@execstr);
+
+	IF @Verbose = 1
+	BEGIN
+		PRINT 'SELECT * FROM @Backup_File_Details'
+		SELECT '@Backup_File_Details' AS RunningTable, * from @Backup_File_Details;
+	END
 
 	-- case 01:- when destination is existing, but logical file names does not match
 	if exists(select * from #DbFiles_Existing)
 	begin
 		--select * from #DbFiles_Existing;
 		--select * from @Backup_File_Details;
+
+		IF @Verbose = 1
+			PRINT 'Validating if Logical Name for existing database and backup file are exactly same'
 
 		if exists( select e.*, b.* from #DbFiles_Existing as e full outer join @Backup_File_Details as b on b.LogicalName = e.logicalName where e.logicalName is null or b.LogicalName is null)
 		begin
@@ -144,13 +192,15 @@ BEGIN
 	end
 	
 	begin
+		IF @Verbose = 1
+			PRINT 'Initializing @execstr with RESTORE command';
+		if @SetStandBy = 1
+			set @execstr = 'restore database [' + @destdbname + '] from disk = ''' + @sourceLocation + @LastFileApplied + ''' with stats, replace, standby = ''f:\dump\' + @sourceDbname + '_undo.dat''';
+		else
+			set @execstr = 'restore database [' + @destdbname + '] from disk = ''' + @sourceLocation + @LastFileApplied + ''' with stats, replace';
+
 		if exists(select * from #DbFiles_Existing)
 		begin
-			if @StandBy = 1
-				set @execstr = 'restore database [' + @destdbname + '] from disk = ''' + @sourceLocation + @LastFileApplied + ''' with stats, replace, standby = ''f:\dump\' + @sourceDbname + '_undo.dat''';
-			else 
-				set @execstr = 'restore database [' + @destdbname + '] from disk = ''' + @sourceLocation + @LastFileApplied + ''' with stats, replace';
-
 			set @dbFileCounts = (select count(*) from #DbFiles_Existing);
 			set @dbFileCounter = 1;
 			while (@dbFileCounter <= @dbFileCounts)
@@ -160,12 +210,41 @@ BEGIN
 		,move '''+ @_logicalName +''' to ''' + @_physicalName +'''';
 
 				set @dbFileCounter = @dbFileCounter + 1;
-			end		
-			
-			--print @execstr
+			end
+		end
+		else
+		begin
+			set @dbFileCounts = (select count(*) from @Backup_File_Details);
+			set @dbFileCounter = 1;
+			while (@dbFileCounter <= @dbFileCounts)
+			begin
+				--@DataFilesDirectory, @LogFilesDirectory
+				select @_logicalName = LogicalName, 
+					   @_physicalName = (case when [Type] = 'L' then @LogFilesDirectory + (right(PhysicalName,charindex('\',reverse(PhysicalName))-1))
+							 else @DataFilesDirectory + (right(PhysicalName,charindex('\',reverse(PhysicalName))-1))
+							 end)
+				from @Backup_File_Details where FileID = @dbFileCounter;
+
+				set @execstr += ' 
+		,move '''+ @_logicalName +''' to ''' + @_physicalName +'''';
+
+				set @dbFileCounter = @dbFileCounter + 1;
+			end
 		end
 
+		IF @Verbose = 1
+		BEGIN
+			PRINT '@execstr => '+CHAR(10)+CHAR(13)+@execstr;
+		END
 		exec(@execstr)
+
+		IF @SetReadOnly =1
+		BEGIN
+			IF @Verbose = 1
+				PRINT 'Setting database to READ_ONLY mode';
+			set @execstr = ' ALTER DATABASE '+QUOTENAME(@destDbname)+' SET READ_ONLY WITH ROLLBACK IMMEDIATE;'
+			EXEC (@execstr);
+		END
 		
 		if not exists(Select * from DBALastFileApplied where dbname = @destDbname)		-- If record does not exist
 			insert into DBALastFileApplied (dbname, LastFileApplied) values(@destDbname, @LastFileApplied)	-- create it

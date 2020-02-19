@@ -83,7 +83,7 @@ Server02      G:\                 674            483            72           191
             
 
             $Disks = Get-WmiObject -Class win32_DiskDrive -ComputerName $Computer | 
-                                Select-Object -Property @{l='DiskID';e={[int32]($_.Index)}},@{l='DiskModel';e={$_.Model}},@{l='LUN';e={$_.SCSILogicalUnit}};
+                                Select-Object -Property @{l='Is_SAN_Disk';e={if(($_.PNPDeviceID).Split('\')[0] -in @('SCSI')){'No'}else{'Yes'}}}, @{l='DiskID';e={[int32]($_.Index)}},@{l='DiskModel';e={$_.Model}},@{l='LUN';e={$_.SCSILogicalUnit}};
 
             $Partitions = Get-WmiObject -Class win32_LogicalDiskToPartition -ComputerName $Computer | 
                                 Select-Object @{l='DiskID';e={if($_.Antecedent -match "Win32_DiskPartition.DeviceID=`"Disk\s#(?'DiskID'\d{1,3}),\sPartition\s#(?'PartitionNo'\d{1,3})") {$Matches['DiskID']} else {$null} }}, 
@@ -91,7 +91,7 @@ Server02      G:\                 674            483            72           191
                                               @{l='VolumeName';e={if($_.Dependent -match "Win32_LogicalDisk.DeviceID=`"(?'VolumeName'[a-zA-Z]:)`"") {$Matches['VolumeName']+'\'} else {$null} }}
                             
             $VolPart = Join-Object -Left $Volumes -Right $Partitions -LeftJoinProperty VolumeName -RightJoinProperty VolumeName -Type AllInLeft -RightProperties @{l='DiskID';e={[int32]($_.DiskID)}},PartitionNo;
-            $DiskVolumeInfo = Join-Object -Left $VolPart -Right $Disks  -LeftJoinProperty DiskID -RightJoinProperty DiskID -Type AllInLeft -RightProperties LUN, DiskModel
+            $DiskVolumeInfo = Join-Object -Left $VolPart -Right $Disks  -LeftJoinProperty DiskID -RightJoinProperty DiskID -Type AllInLeft -RightProperties Is_SAN_Disk, LUN, DiskModel
 
             foreach ($diskInfo in $DiskVolumeInfo)
             {
@@ -103,6 +103,7 @@ Server02      G:\                 674            483            72           191
                                     'Used Space(%)'= $diskInfo.'Used Space(%)';
                                     'FreeSpace(GB)'= $diskInfo.'FreeSpace(GB)';
                                     'Label'=$diskInfo.Label;
+                                    'Is_SAN_Disk' = $diskInfo.Is_SAN_Disk;
                                     'DiskID'=$diskInfo.DiskID;
                                     'LUN'=$diskInfo.LUN;
                                     'DiskModel'=$diskInfo.DiskModel;

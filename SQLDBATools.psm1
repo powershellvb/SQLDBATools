@@ -2,21 +2,44 @@
     Module Name:-   SQLDBATools
     Created By:-    Ajay Kumar Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
-    Modified Date:- 24-Oct-2019
+    Modified Date:- 30-Oct-2019
     Version:-       0.0
 #>
 
 Push-Location;
+
 # First Load Environment Variables
+# File :Set-EnvironmentVariables.ps1" is present @ C:\Users\adwivedi\OneDrive - TiVo Inc\Tivo-Assignments\Set-EnvironmentVariables.ps1
+# File :Set-EnvironmentVariables.ps1" is also present inside Cmdlets subdirectory with dummy values.
 if($verbose)
 {
     Write-Host "====================================================";
     Write-Host "'Environment Variables are being loaded.." -ForegroundColor Yellow;
 }
-Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
+if(Test-Path "C:\Set-EnvironmentVariables.ps1") {
+    Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
+} else {
+    $envFile = "$PSScriptRoot\Cmdlets\Set-EnvironmentVariables.ps1"
+    Copy-Item $envFile -Destination C:\ | Out-Null;
+    Write-Output "Environment file 'Set-EnvironmentVariables.ps1' has been copied on C:\ drive.`nKindly modify the variable values according to your environment";
+}
+<#
+$M_SqlServer = Get-Module -Name SqlServer -ListAvailable -Verbose:$false;
+if([String]::IsNullOrEmpty($M_SqlServer)) {
+    Write-Output 'SqlServer powershell module needs to be installed. Kindly execute below command in Elevated shell:-'
+    Write-Output "`tInstall-Module -Name SqlServer -Scope AllUsers -Force -Confirm:`$false -Verbose:`$false'"
+} else {
+    Import-Module SqlServer -Global -Verbose:$false | Out-Null;
+}
+#>
+$M_dbatools = Get-Module -Name dbatools -ListAvailable -Verbose:$false;
+if([String]::IsNullOrEmpty($M_dbatools)) {
+    Write-Output 'dbatools powershell module needs to be installed. Kindly execute below command in Elevated shell:-'
+    Write-Output "`tInstall-Module -Name dbatools -Scope AllUsers -Force -Confirm:`$false -Verbose:`$false'"
+} else {
+    Import-Module dbatools -Global -Verbose:$false | Out-Null;
+}
 
-#Write-Verbose "Importing SqlServer & dbatools Module";
-#Import-Module SqlServer, dbatools;
 
 # Check for ActiveDirectory module
 if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }) -eq $null ) 
@@ -36,14 +59,6 @@ if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }
     }
 }
 
-# File :Set-EnvironmentVariables.ps1" is present @ C:\Users\adwivedi\OneDrive - TiVo Inc\Tivo-Assignments\Set-EnvironmentVariables.ps1
-# File :Set-EnvironmentVariables.ps1" is also present inside Cmdlets subdirectory with dummy values.
-if($verbose)
-{
-    Write-Host "====================================================";
-    Write-Host "'Environment Variables are being loaded.." -ForegroundColor Yellow;
-}
-Invoke-Expression -Command "C:\Set-EnvironmentVariables.ps1";
 if($verbose)
 {
     Write-Host "====================================================";
@@ -71,14 +86,18 @@ if($verbose)
 #. $PSScriptRoot\Get-DBFiles.ps1
 . $PSScriptRoot\Cmdlets\Get-AdministrativeEvents.ps1
 . $PSScriptRoot\Cmdlets\Get-AdUserInfo.ps1
+. $PSScriptRoot\Cmdlets\Get-BackupHistory.ps1
 . $PSScriptRoot\Cmdlets\Get-ClusterInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo.ps1
 . $PSScriptRoot\Cmdlets\Get-DatabaseBackupInfo_SMO.ps1
+. $PSScriptRoot\Cmdlets\Get-DbaRestoreScript.ps1
 . $PSScriptRoot\Cmdlets\Get-FullQualifiedDomainName.ps1
 . $PSScriptRoot\Cmdlets\Get-HBAWin.ps1
 . $PSScriptRoot\Cmdlets\Get-LinkedServer.ps1
 . $PSScriptRoot\Cmdlets\Get-MachineType.ps1
 . $PSScriptRoot\Cmdlets\Get-MSSQLLinkPasswords.ps1
+. $PSScriptRoot\Cmdlets\Get-OrphanDatabaseFiles.ps1
+#. $PSScriptRoot\Cmdlets\Get-OutlookInBox.ps1
 . $PSScriptRoot\Cmdlets\Get-Password4Account.ps1
 . $PSScriptRoot\Cmdlets\Get-PerfMonCounters.ps1
 . $PSScriptRoot\Cmdlets\Get-PowerPlanInfo.ps1
@@ -110,6 +129,7 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Select-ServerInfo.ps1
 . $PSScriptRoot\Cmdlets\Send-SQLMail.ps1
 . $PSScriptRoot\Cmdlets\Set-BaselineWithWhoIsActive.ps1
+. $PSScriptRoot\Cmdlets\Set-BlockingAlert.ps1
 . $PSScriptRoot\Cmdlets\Set-DatabaseBackupJobs.ps1
 . $PSScriptRoot\Cmdlets\Set-DbaConfigurations.ps1
 . $PSScriptRoot\Cmdlets\Set-DbaLogWalk.ps1
@@ -130,6 +150,6 @@ if($verbose)
 Push-Location;
 
 <#
-Remove-Module SQLDBATools -ErrorAction SilentlyContinue;
-Import-Module SQLDBATools, SqlServer, dbatools
+Remove-Module SQLDBATools,dbatools,SqlServer -ErrorAction SilentlyContinue;
+Import-Module SQLDBATools,dbatools
 #>

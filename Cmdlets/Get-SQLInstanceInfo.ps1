@@ -22,7 +22,7 @@
             https://www.mssqltips.com/sqlservertip/2013/find-sql-server-instances-across-your-network-using-windows-powershell/
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess=$true,ConfirmImpact='None')]
     Param(
         <#
         [Parameter( Mandatory = $true,
@@ -31,6 +31,7 @@
         [String[]]$ServerName
         #>
         [Parameter( Mandatory = $true, ValueFromPipeline = $true, ValueFromPipelineByPropertyName = $true)]
+        [Alias('SqlInstance')]
         [String[]]$ServerName
     )
     BEGIN 
@@ -41,26 +42,33 @@
     }
     PROCESS
     {
+        Write-Verbose "Inside PROCESS block";
+        if($_ -ne $null) {
+            $ServerName = $_;
+            Write-Verbose "Parameters received from PipeLine.";
+        }
+
         # Loop through each machines
         foreach($machine in $ServerName)
         {
+            Write-Verbose "Processing ServerName: $machine";
+            $isManagedComputerAccessible = $true;
+
             # Reset with each loop
             $Discover = $true;
             $instances = @();
             if($Global:PrintUserFriendlyMessage) {
                 Write-Host "Starting:- Searching for instances on $machine" -ForegroundColor Yellow;
             }
-
-            if ([String]::IsNullOrEmpty($machine) -or (Test-Connection -ComputerName $machine -Count 1 -Quiet) -eq $false)
-            {
+            Write-Debug "Before Error"
+            if ([String]::IsNullOrEmpty($machine) -or (Test-Connection -ComputerName $machine -Count 1 -Quiet) -eq $false) {
                 $MessageText = "(Get-SQLInstanceInfo)=> Supplied value '$machine' for ServerName parameter is invalid, or server is not accessible.";
                 if($Global:PrintUserFriendlyMessage) {
                     Write-Host $MessageText -ForegroundColor Red;
                 }
                 Continue;
             }
-            else
-            {
+            else {
                 $FQDN = (Get-FullQualifiedDomainName -ComputerName $machine);
                 $pServerName = if($FQDN  -match "^(?'ServerName'[0-9A-Za-z_-]+)\.*?.*"){$Matches['ServerName']}else{$null}
                 if([String]::IsNullOrEmpty($machine)) 
@@ -72,9 +80,23 @@
                 }
             }
 
-            $m = New-Object ('Microsoft.SqlServer.Management.Smo.WMI.ManagedComputer') "$FQDN";
+            Write-Verbose "Creating ManagedComputer Object to find installed Sql Instances";
+            $m = New-Object ('Microsoft.SqlServer.Management.Smo.Wmi.ManagedComputer') "$FQDN";
             
-            $InstanceNames = $m.ServerInstances.Name;
+            try{
+                $InstanceNames = $m.ServerInstances.Name;
+            }
+            catch {
+                Write-Verbose "ManagedComputer object did not return value. So trying raw method of Get-Service";
+                $isManagedComputerAccessible = $false;
+                $InstanceNames = @();
+                Get-Service -Name *sql* -ComputerName $machine | ForEach-Object {
+                    if($_.DisplayName -match "SQL Server \((?'InstanceName'\w+)\)") {
+                        $InstanceNames += $Matches['InstanceName']
+                    }
+                }
+            }
+
             try {
                 #$productKeys = Get-DbaProductKey -ComputerName "$pServerName";
                 $productKeys = Get-SqlServerProductKeys -Servers $FQDN -ErrorAction Stop;
@@ -113,6 +135,7 @@ $($_.Exception.Message)
             
             foreach($Instance in $InstanceNames)
             {
+                Write-Debug "Inside foreach block of `$InstanceNames";
                 # Instantiate Server Object for SqlInstance
                 $sqlInstance = if($Instance -eq 'MSSQLSERVER') {"$pServerName"} else {"$pServerName\$Instance"};
                 
@@ -141,8 +164,13 @@ $($_.Exception.Message)
 	                $DefaultLogLocation = $Server.Information.MasterDBLogPath
 	            }
                 $DefaultBackupLocation = $Server.Settings.BackupDirectory;
-                $m = New-Object ('Microsoft.SqlServer.Management.Smo.WMI.ManagedComputer') "$FQDN";
-                $port = $m.ServerInstances["$Instance"].ServerProtocols['Tcp'].IPAddresses['IPALL'].IPAddressProperties['TcpPort'].Value;
+                if($isManagedComputerAccessible) {
+                    $m = New-Object ('Microsoft.SqlServer.Management.Smo.WMI.ManagedComputer') "$FQDN";
+                    $port = $m.ServerInstances["$Instance"].ServerProtocols['Tcp'].IPAddresses['IPALL'].IPAddressProperties['TcpPort'].Value;
+                }
+                else {
+                    $port = $null;
+                }
 
                 [boolean]$IsStandaloneInstance = $false;
                 [boolean]$IsSqlCluster = $false;

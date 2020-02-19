@@ -20,7 +20,7 @@
     .PARAMETER SqlInstance
         Sql Server Instance on which various configurations are to be set up.
 
-    .EXMAPLE
+    .EXAMPLE
         Set-DbaConfigurations -SqlInstance 'testvm'
 
         This command sets various configurations on server 'testvm'. For example max memory, dop, etc.
@@ -44,6 +44,7 @@ SET NOCOUNT ON;
 IF DB_ID('DBA') IS NULL
 	CREATE DATABASE DBA;
 "@;
+    #Write-Debug "Start of executions"
     Write-Verbose "Create if not exists [DBA] database";
     Invoke-DbaQuery -SqlInstance $SqlInstance -Query $tsql_CreateDb -Verbose:$false | Out-Null;
 
@@ -79,7 +80,7 @@ IF DB_ID('DBA') IS NULL
 
     # Set Database Mail Account/Profile/Default Agent Profile
     Write-Verbose "Set MailProfile";
-    Set-DbaMailProfile -ServerInstance $SqlInstance -Verbose:$false;
+    Set-DbaMailProfile -SqlInstance $SqlInstance -Verbose:$false;
 
     # Set Model database with Optimal Settings
     Write-Verbose "Set [model] database with Optimal Settings";
@@ -108,4 +109,8 @@ IF DB_ID('DBA') IS NULL
     # Setup DatabaseBackup Jobs
     Write-Verbose "Create DatabaseBackup Jobs";
     Set-DatabaseBackupJobs -SqlInstance $SqlInstance -Verbose:$false | Out-Null;
+
+    # Create Blocking Alert
+    Write-Verbose "Create Blocking Alert Job";
+    Set-BlockingAlert -SqlInstance $SqlInstance -Verbose -Confirm:$false | Out-Null;
 }

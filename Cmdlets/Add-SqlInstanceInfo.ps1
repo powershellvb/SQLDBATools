@@ -171,7 +171,7 @@ $($_.Exception.Message)
                 $dtable | fl;
                 $dtable | gm -MemberType Property
             }
-            $sqlInstanceInfo | Write-DbaDataTable -SqlInstance $InventoryInstance -Database $InventoryDatabase -Schema 'Staging' -Table 'InstanceInfo';
+            $sqlInstanceInfo | Write-DbaDataTable -SqlInstance $InventoryInstance -Database $InventoryDatabase -Schema 'Staging' -Table 'InstanceInfo' -AutoCreateTable;
             <#
             $cn = new-object System.Data.SqlClient.SqlConnection("Data Source=$InventoryInstance;Integrated Security=SSPI;Initial Catalog=$InventoryDatabase");
             $cn.Open();

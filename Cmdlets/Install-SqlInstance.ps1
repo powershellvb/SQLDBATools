@@ -86,18 +86,30 @@
     if($SetupParentFolderOnTarget.EndsWith('\') -eq $false){$SetupParentFolderOnTarget += '\'};
 
     Write-Verbose "Creating credential for SQLDBATools for PSRemoting";
+    $InventoryServerName = $Global:InventoryInstance.Split('\')[0];
+    $CurrentHostName = $env:COMPUTERNAME;
 
     # File Path for Credentials & Key
-    $SQLDBATools = Get-Module -ListAvailable -Name SQLDBATools | Select-Object -ExpandProperty ModuleBase;
-    $AESKeyFilePath = "$SQLDBATools\SQLDBATools_AESKey.key";
-    $credentialFilePath = "$SQLDBATools\SQLDBATools_Credentials.xml";
+        # Check if Host & Inventory Server are same
+    if($InventoryServerName -eq $CurrentHostName) {
+        $SQLDBATools = Get-Module -ListAvailable -Name SQLDBATools | Select-Object -ExpandProperty ModuleBase;
+        $AESKeyFilePath = "$SQLDBATools\SQLDBATools_AESKey.key";
+        $credentialFilePath = "$SQLDBATools\SQLDBATools_Credentials.xml";
+    }else {
+        $SQLDBATools = Invoke-Command -ComputerName $InventoryServerName -ScriptBlock {Get-Module -ListAvailable -Name SQLDBATools | Select-Object -ExpandProperty ModuleBase;}
+        $AESKeyFilePath = "\\$InventoryServerName\$($SQLDBATools.Replace(':','$'))\SQLDBATools_AESKey.key";
+        $credentialFilePath = "\\$InventoryServerName\$($SQLDBATools.Replace(':','$'))\SQLDBATools_Credentials.xml";
+    }
+    
     [string]$SQL_Server_Setups = $Global:SQL_Server_Setups;
     if($SQL_Server_Setups.EndsWith('\') -eq $false){$SQL_Server_Setups += '\'};
     [string]$userName = $Global:SQLDBATools_CorporateAccount;
+    
 
     # Create credential Object
     $AESKey = Get-Content $AESKeyFilePath;
     $pwdTxt = (Import-Clixml $credentialFilePath | Where-Object {$_.UserName -eq $userName}).Password;
+
     [SecureString]$securePwd = $pwdTxt | ConvertTo-SecureString -Key $AESKey;
     [PSCredential]$credentialObject = New-Object System.Management.Automation.PSCredential -ArgumentList $userName, $securePwd;
 
@@ -129,13 +141,15 @@
 
         # Copy Setup File
         Write-Verbose "Copying SQL Server setup from path '$SetupFolder' to '$SetupFolder_Local' ..";
-        if(-not (Test-Path -Path "$($SetupFolder_Local)$Edition\") ) {
-            Copy-Item "$SetupFolder" -Destination "$SetupFolder_Local" -Recurse -Force;
+        #if(-not (Test-Path -Path "$($SetupFolder_Local)$Edition\") ) {
+        if(-not (Test-Path -Path "$SetupFolder_Local\$Version`_$Edition\") ) {
+            #Copy-Item "$SetupFolder" -Destination "$SetupFolder_Local" -Recurse -Force;
+            Copy-Item -Path "$SetupFolder" -Destination "$SetupFolder_Local\$Version`_$Edition\" -Recurse -Force;
         }
 
         $response = "YES";
         if($Using:ModifyConfigFile) {
-            Write-Output "Kindly make required changes in below Configfile: `nnotepad '\\$($env:COMPUTERNAME)\$($SetupFolder_Local.Replace(':','$'))$Edition\ConfigurationFile.ini'`n";
+            Write-Output "Kindly make required changes in below Configfile: `nnotepad '\\$($env:COMPUTERNAME)\$($SetupFolder_Local.Replace(':','$'))$Version`_$Edition\ConfigurationFile.ini'`n";
             $response = Read-Host "Type `"YES`" if you are done with Configuration change";
             if($response -ne "YES") {$response = "NO"}
         }
@@ -145,9 +159,9 @@
         }
 
         # Start Sql Server Installation
-        Set-Location "$($SetupFolder_Local)$Edition\";
+        Set-Location "$($SetupFolder_Local)$Version`_$Edition\";
 
-        Write-Verbose "Starting SQL Server setup from path '$($SetupFolder_Local)$Edition\' ..";
+        Write-Verbose "Starting SQL Server setup from path '$($SetupFolder_Local)$Version`_$Edition\' ..";
         Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process | Out-Null;
         . .\AutoBuild.ps1; AutoBuild -SQLServiceAccount $SQLServiceAccount -InstanceName $InstanceName -SQLServiceAccountPassword $SQLServiceAccountPassword -SAPassword $SAPassword -Administrators $Administrators;
     }

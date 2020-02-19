@@ -4,25 +4,32 @@
     Param (
         [Parameter(ValueFromPipeline=$true,
                    ValueFromPipelineByPropertyName=$true)]
-        [Alias('ServerName','MachineName','ServerInstance','SqlInstance')]
-        [String]$ComputerName
+        [Alias('ComputerName','MachineName','SqlInstance')]
+        [String]$ServerName
     )
 
-    $fqdn = Get-FullQualifiedDomainName -ComputerName $ComputerName;
+    #$fqdn = Get-FullQualifiedDomainName -ComputerName $ComputerName;
 
     $sqlQuery = @"
-select s.ServerID, s.ServerName, s.EnvironmentType, s.DNSHostName, s.FQDN, s.IPAddress, 
-		s.Domain, s.OperatingSystem, s.SPVersion, s.IsVM, s.Manufacturer, s.Model, s.RAM, 
-		s.CPU, s.CollectionTime, s.GeneralDescription,
-		i.InstanceID, i.InstanceName, i.InstallDataDirectory, i.Version, i.Edition, i.ProductKey, 
-		i.IsClustered, i.IsCaseSensitive, i.IsHadrEnabled, i.IsDecommissioned, i.IsPowerShellLinked
-from Info.Server as s
-left join
-	Info.Instance as i
-	on i.FQDN = s.FQDN
-where s.FQDN = '$fqdn'
-or i.InstanceName = '$ComputerName'
-go
+if exists (select * from dbo.Server where ServerName = '$ServerName')
+	select s.ServerID, s.ServerName, s.EnvironmentType, s.FQDN, s.IPAddress, 
+			s.Domain, s.OS, s.SPVersion, s.IsVM, s.Manufacturer, s.Model, s.RAM, 
+			s.CPU, s.CollectionDate, s.GeneralDescription,
+			i.InstanceID, i.InstanceName, i.RootDirectory, i.Version, i.Edition, i.ProductKey, 
+			[ServerType] = case when i.IsStandaloneInstance = 1 then 'StandAlone'
+								when i.AGListener = 1 then 'AGListener'
+								when i.IsSQLCluster  = 1 then 'SqlCluster'
+								when i.IsAGNode = 1 then 'AG Node'
+								else 'NULL'
+								end
+			,s.ISDecom, i.IsPowershellLinked
+	from dbo.Server as s
+	left join
+		dbo.Instance as i
+		on s.ServerID = i.ServerID
+	where s.ServerName = '$ServerName'
+else
+	select 'server not found in inventory' as output;
 "@;
 
     try 

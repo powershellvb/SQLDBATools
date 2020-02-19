@@ -1,16 +1,18 @@
-USE [DBA]
+USE DBA
 GO
 
 IF OBJECT_ID('dbo.usp_DBAApplyTLogs') IS NULL
-	EXEC ('CREATE PROCEDURE dbo.usp_DBAApplyTLogs AS SELECT 1 AS DummyToBeReplace;');
+	EXEC('CREATE procedure [dbo].[usp_DBAApplyTLogs] AS SELECT 1 as Dummy;')
 GO
 
-ALTER PROCEDURE [dbo].[usp_DBAApplyTLogs]
+CREATE PROCEDURE [dbo].[usp_DBAApplyTLogs]
 	-- Add the parameters for the stored procedure here
 	@sourceDbname varchar(50),							-- Database name on the publisher
 	@destDbname varchar(50),							-- Database name on the subscriber
 	@SourceLocation varchar(100) = '\\tul1cipcnpdb1\f$\dump\',	-- Location of the log files on the publisher; default Prod
 	@LocalLocation varchar(100) = 'f:\LogWalk_TUF_Files\'					-- Location of the standby file on the subscriber
+	,@GetSingleMode bit = 0 -- Start Restore Log after taking Single User mode of database
+	,@Verbose bit = 0
 AS
 BEGIN
 	-- =============================================
@@ -31,11 +33,17 @@ BEGIN
 	-- =============================================
 
 	SET NOCOUNT ON
+
+	IF @Verbose = 1
+		PRINT 'Declaring local variables';
 	declare @LastFileApplied varchar(100)
 	declare @execstr varchar(1000)
 	declare @Failed int
 	Declare @file TABLE (filename varchar(500));
 	DECLARE @SuccessfullApply varchar(100);
+	DECLARE @IsFirstFile bit = 0;
+	if(@GetSingleMode = 1 and exists(select * from sys.databases d where d.name = @destdbname and d.is_in_standby = 1))
+		set @IsFirstFile = 1;
 
 	set @Failed = 0;							-- Flag to check if the last apply was successful or not
 	if OBJECT_ID('DBALastFileApplied') is null	--Create table if it does not exist
@@ -54,9 +62,19 @@ BEGIN
 	--set @execstr = 'exec xp_cmdshell ''dir ' + @SourceLocation + '*' + @sourceDbname + '_* /od /b '''
 	set @execstr = 'exec xp_cmdshell ''dir ' + @SourceLocation + '*' + @sourceDbname + '_LOG_* /od /b ''';
 
+	IF @Verbose = 1
+		PRINT '@execstr => '+CHAR(10)+char(13)+@execstr;
+
 	insert @file exec (@execstr)
 	delete from @file where filename is null				-- Delete the extra NULL record created by the dir command
-	delete from @file where filename = 'File not found'		
+	delete from @file where filename = 'File not found'	
+	
+	IF @Verbose = 1
+	BEGIN
+		PRINT 'SELECT * FROM @file';
+		SELECT '@file' as RunningTable, * FROM @file
+	END
+
 	if not exists (Select * from @file)
 	begin
 		print 'No files to process'
@@ -71,9 +89,21 @@ BEGIN
 	select @LastFileApplied =  min(filename) from @file
 	while @LastFileApplied is not null
 	begin
+		if(@IsFirstFile = 1)
+		BEGIN
+			IF @Verbose = 1
+				print 'Taking single_user mode of database';
+			set @execstr = 'ALTER DATABASE [' + @destdbname + '] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;'
+			exec(@execstr)
+			SET @IsFirstFile = 0;			
+		END
+		
 		set @execstr = 'restore log [' + @destdbname + '] from disk = ''' + @sourceLocation + @LastFileApplied + ''' with stats, replace, norecovery'
-		print @execstr
-		begin try							-- Apply Transaction logs
+		if @Verbose = 1
+			print '@execstr => '+char(10)+char(13)+@execstr;
+
+		--print @execstr
+		begin try						-- Apply Transaction logs
 			exec(@execstr)
 			set @Failed = 0;
 			SET @SuccessfullApply = @LastFileApplied
@@ -83,6 +113,10 @@ BEGIN
 			print 'Failed on restoring ' + @LastFileApplied
 			set @Failed = 1;
 		end catch
+
+		if @Verbose = 1
+			print 'Updating table DBALastFileApplied';
+			
 		if not exists(Select * from DBALastFileApplied where dbname = @destDbname)		-- If record does not exist
 			insert into DBALastFileApplied (dbname, LastFileApplied) values(@destDbname, @LastFileApplied)	-- create it
 		else
@@ -99,10 +133,23 @@ BEGIN
 			set @execstr = 'Restore failed due to missing file.  Last successful log file applied was ' + @SuccessfullApply
 		Raiserror(@execstr, 11, 1)
 	end
+	
+	--set @execstr = 'ALTER DATABASE [' + @destdbname + '] SET MULTI_USER;'
+	--exec (@execstr)
+
+	if @GetSingleMode = 1 and exists(SELECT * FROM sys.databases WHERE name = 'YourDb' and  user_access_desc = 'SINGLE_USER')
+	BEGIN
+		set @execstr = 'alter database [' + @destdbname + '] set MULTI_USER;'
+		if @Verbose = 1
+			print @execstr
+		exec(@execstr)
+	END
+
 	IF (SELECT Is_In_Standby FROM sys.databases WHERE Name = @destDbname AND [State] = 1) = 0
 	BEGIN							-- Set database in usable (Read only) mode
 		set @execstr = 'restore database [' + @destdbname + '] with standby=''' + @LocalLocation + @destDbname + '_undo.dat'''
-		print @execstr
+		if @Verbose = 1
+			print @execstr
 		exec(@execstr)
 	END
 END

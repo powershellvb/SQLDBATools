@@ -7,7 +7,7 @@
 SET NOCOUNT ON;
 
 --	Declare variables and other objects
-DECLARE @verbose BIT = 0;
+DECLARE @verbose BIT = 1;
 
 DECLARE @DisplayName SYSNAME;
 DECLARE @ProfilesAccounts TABLE 
@@ -42,6 +42,7 @@ BEGIN
 END
 IF NOT EXISTS (SELECT * FROM @ProfilesAccounts as a WHERE a.profile_name = @@SERVERNAME AND a.account_name = 'SQLAlerts')
 	OR EXISTS (SELECT * FROM @ProfilesAccounts as a WHERE a.profile_name = @@SERVERNAME AND sequence_number = 1 AND a.account_name <> 'SQLAlerts')
+	OR NOT EXISTS(SELECT * FROM msdb..sysmail_account a WHERE a.name = 'SQLAlerts' AND a.email_address = 'SQLAlerts@tivo.com' AND a.display_name = @DisplayName)
 BEGIN
 	-- Create Database Mail account for SQLAlerts if NOT EXISTS
 	IF NOT EXISTS (SELECT * FROM [msdb]..[sysmail_account] as a WHERE a.name = 'SQLAlerts')
@@ -56,6 +57,22 @@ BEGIN
 			@display_name = @DisplayName,  
 			@mailserver_name = 'relay.corporate.local';
 	END
+	ELSE
+	BEGIN
+		IF @verbose = 1
+			PRINT 'EXECUTE msdb.dbo.sysmail_update_account_sp'
+		IF NOT EXISTS(SELECT * FROM msdb..sysmail_account a WHERE a.name = 'SQLAlerts' AND a.email_address = 'SQLAlerts@tivo.com' AND a.display_name = @DisplayName)
+		BEGIN		
+			EXECUTE msdb.dbo.sysmail_update_account_sp  
+					 @account_name = 'SQLAlerts',  
+					@description = 'Mail account for alerts',  
+					@email_address = 'SQLAlerts@tivo.com',--'SQLAlerts@RoviCorp.com',  
+					@replyto_address = 'IT-Ops-DBA@tivo.com',  
+					@display_name = @DisplayName,  
+					@mailserver_name = 'relay.corporate.local'; 
+		END
+	END
+	
 	
 	-- Create a Database Mail profile if NOT EXISTS 
 	IF NOT EXISTS ( SELECT * FROM msdb..sysmail_profile as p WHERE p.name = @@SERVERNAME )
@@ -97,19 +114,25 @@ BEGIN
 			FETCH C INTO @profile_name, @account_name, @sequence_number;
 		END
 	END
+END;
 
-	-- Grant access to the profile to all users in the msdb database if NOT EXISTS
-	IF EXISTS (SELECT * FROM msdb..sysmail_profile as p 
-							inner join msdb..sysmail_principalprofile AS pp
-						ON pp.profile_id = p.profile_id AND p.name = @@SERVERNAME
-	)
-	BEGIN
+-- Grant access to the profile to all users in the msdb database if NOT EXISTS
+IF EXISTS (SELECT * FROM msdb..sysmail_profile as p 
+						inner join msdb..sysmail_principalprofile AS pp
+					ON pp.profile_id = p.profile_id AND p.name = @@SERVERNAME
+					WHERE is_default <> 1
+)
+BEGIN
+	BEGIN TRY
 		EXECUTE msdb.dbo.sysmail_add_principalprofile_sp  
 			@profile_name = @@SERVERNAME,  
 			@principal_name = 'public',
 			@is_default = 1 ;
-	END
-END;
+	END TRY
+	BEGIN CATCH
+		PRINT 'Some error occurred during EXECUTE msdb.dbo.sysmail_add_principalprofile_sp  '
+	END CATCH
+END
 
 
 -- Test Mail Profile by Sending Dummy Mail

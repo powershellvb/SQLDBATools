@@ -28,7 +28,7 @@ https://github.com/imajaydwivedi/SQLDBATools
     try 
     {
         if($PSCmdlet.ShouldProcess("$SqlInstance")) {
-            Invoke-DbaQuery -ServerInstance $SqlInstance -Database msdb -InputFile $mailProfileTSQLScriptFile -ErrorAction Stop;
+            Invoke-DbaQuery -SqlInstance $SqlInstance -Database msdb -File $mailProfileTSQLScriptFile -ErrorAction Stop;
 
             $srv = New-Object -TypeName Microsoft.SqlServer.Management.SMO.Server("$SqlInstance");
             $sm = $srv.Mail.Profiles | Where-Object {$_.Name -eq $SqlInstance};
