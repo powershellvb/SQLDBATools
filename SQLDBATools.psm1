@@ -2,7 +2,7 @@
     Module Name:-   SQLDBATools
     Created By:-    Ajay Kumar Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
-    Modified Date:- 30-Oct-2019
+    Modified Date:- 20-June-2020
     Version:-       0.0
 #>
 
@@ -94,6 +94,7 @@ if($verbose)
 . $PSScriptRoot\Cmdlets\Get-FullQualifiedDomainName.ps1
 . $PSScriptRoot\Cmdlets\Get-HBAWin.ps1
 . $PSScriptRoot\Cmdlets\Get-LinkedServer.ps1
+. $PSScriptRoot\Cmdlets\Get-MacAddress.ps1
 . $PSScriptRoot\Cmdlets\Get-MachineType.ps1
 . $PSScriptRoot\Cmdlets\Get-MSSQLLinkPasswords.ps1
 . $PSScriptRoot\Cmdlets\Get-OrphanDatabaseFiles.ps1
