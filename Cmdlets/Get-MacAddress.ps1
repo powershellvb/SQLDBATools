@@ -8,6 +8,7 @@ function Get-MacAddress
         [Switch]$AllComputers
     )
     
+
     if([String]::IsNullOrEmpty($ComputerName)) {
         $ComputerName = $env:COMPUTERNAME
     }
@@ -15,10 +16,14 @@ function Get-MacAddress
     $ExcelData = @();
     $ExcelData = Import-Excel -Path $ExcelPath -WorksheetName 'IPv4-Windows' -StartRow 2 -DataOnly;
     $ExcelData += Import-Excel -Path $ExcelPath -WorksheetName 'IPv4-Linux' -StartRow 2 -DataOnly;
+    $ExcelData += Import-Excel -Path $ExcelPath -WorksheetName 'Client-Desktops' -StartRow 2 -DataOnly;
     $ExcelData += Import-Excel -Path $ExcelPath -WorksheetName 'Monitoring & Support' -StartRow 2 -DataOnly;
 
+    $SkipNames = @('Router','Host')
+    $FilteredData = $ExcelData | Where-Object {$_.'Machine Name' -notin $SkipNames}
+
     if(-not $AllComputers) {
-        $FilteredData = $ExcelData | Where-Object {$_.'Machine Name' -in $ComputerName}
+        $FilteredData = $FilteredData | Where-Object {$_.'Machine Name' -in $ComputerName}
     }
    
     [System.Collections.ArrayList]$IpMacData = @();
