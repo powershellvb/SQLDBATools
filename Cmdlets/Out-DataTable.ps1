@@ -64,7 +64,7 @@ function Out-DataTable
  
     Begin 
     { 
-        $dt = new-object Data.datatable   
+        $dt = new-object Data.datatable
         $First = $true  
     } 
     Process 
