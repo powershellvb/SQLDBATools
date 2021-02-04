@@ -114,8 +114,8 @@ GO
             $link.ScriptOut | Out-File -FilePath $file -Append -Force;
             "`nGO`n" | Out-File -FilePath $file -Append -Force;
         }
-        Write-Verbose "Opening file with Scriptout of LinkedServer";
-        notepad $file
+        Write-Host "Output saved in file '$file'";
+        #notepad $file
     }
     else {
         Write-Verbose "Returning result back to Caller";

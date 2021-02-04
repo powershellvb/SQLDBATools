@@ -1,194 +1,129 @@
-﻿function Get-MSSQLLinkPasswords {
-  <# 
-	.SYNOPSIS
-	  Extract and decrypt MSSQL linked server passwords.
-	  
-	  Author: Antti Rantasaari 2014, NetSPI
-      Modified By: Ajay Dwivedi
-      License: BSD 3-Clause
-	  
-	.DESCRIPTION
-	  Get-MSSQLLinkPasswords extracts and decrypts the connection credentials for all linked servers that use SQL Server authentication on all local MSSQL instances.
-	
+﻿function Get-LinkedServer {
+<#
+    .SYNOPSIS
+    This function returns LinkedServers presents on SqlInstance
+    .DESCRIPTION
+    This function accept SqlInstance name and return all LinkedServers present on the Instance.
     .PARAMETER SqlInstance
-      Name of the Sql Instance where Linked Server username passwords have to be decrypted.
-
-	.INPUTS
-	  None
-	
-	.OUTPUTS
-	  System.Data.DataRow
-	  
-	  Returns a datatable consisting of MSSQL instance name, linked server name, user account, and decrypted password.
-	
-	.EXAMPLE
-	  C:\PS> Get-MSSQLLinkPasswords
-	  
-      Instance   Linkserver User Password
-      --------   ---------- ---- --------
-      SQLEXPRESS SQLSERVER2 test test
-      SQLEXPRESS DEV-SQL    dev  Passw0rd01!
-      SQL2012    DEV-SQL    dev  Passw0rd01!
-      SQL2012    WEBDB      sa   W3bDB$4P4ssw0rd
-      SQL2012    VAULT      sa   !@#Sup3rS3cr3tP4$$w0rd!!$$
-	  
-	.NOTES  
-	  For successful execution, the following configurations and privileges are needed:
-	  - DAC connectivity to MSSQL instances
-	  - Local administrator privileges (needed to access registry key)
-	  - Sysadmin privileges to MSSQL instances
-	
-	.LINK
-	  http://www.netspi.com/blog/
+    Name of the Sql Instance where Linked Server username passwords have to be decrypted.
+    .PARAMETER ScriptOut
+    Use this switch to get ScriptOut of LinkedServers in .sql file
+    .EXAMPLE
+    Get-LinkedServer -SqlInstance 'testvm' | Out-GridView
+    Find all Linked servers with usernames and passwords present on SqlInstance 'testvm'. Display the result in Grid view.
+    .EXAMPLE
+    Get-LinkedServer -SqlInstance 'testvm' -ScriptOut
+    Get drop/create statements for all Linked servers with corrent usernames and passwords present on SqlInstance 'testvm' in a text file.
     .LINK
-      https://github.com/imajaydwivedi/SQLDBATools
-  #>
+    https://github.com/imajaydwivedi/SQLDBATools
+#>  
+    [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='High')]
+    Param (
+        [Parameter(Mandatory=$true, ValueFromPipeline=$true, ValueFromPipelineByPropertyName=$true)]
+        [string[]]$SqlInstance = $Env:computername,
 
-  [CmdletBinding(SupportsShouldProcess=$true, ConfirmImpact='High')]
-  Param (
-    [string[]]$SqlInstance = $Env:computername
-  )
+        [Parameter(Mandatory=$false)]
+        [switch]$ScriptOut,
 
-  # Store multiple servers result
-  $Results = @();
+        [Parameter(Mandatory=$false)]
+        [string]$File
+    )
 
-  foreach($sqlInst in $SqlInstance) {
-      $InstanceName = 'MSSQLSERVER';
-      $ComputerName = $sqlInst.Split('\')[0];
-      if($sqlInst.Contains('\')){$InstanceName = $sqlInst.Split('\')[1]}
+    $LinkedServerAllInstances = @();
 
-      Write-Verbose "`$ComputerName = $ComputerName";
+    # Create file to store ScriptOut result
+    if([string]::IsNullOrEmpty($File)) {
+        $File = "c:\temp\LinkedServers_ScripOut_4_"+(($SqlInstance -join '__').Replace('\','-'))+".sql";
+    }
+    Remove-Item -Path $File -Force -ErrorAction SilentlyContinue;
 
-      $ScriptBlock = {
-          $VerbosePreference = $Using:VerbosePreference;
-          $ConfirmPreference = $Using:ConfirmPreference;
-          $WhatIfPreference = $Using:WhatIfPreference;
-          $DebugPreference = $Using:DebugPreference;
+    Write-Verbose "Start looping through each SqlInstance";
+    foreach($SqlInst in $SqlInstance) {
+        [System.Collections.ArrayList]$LinkedServerCollection = @();
+        
+        Write-Verbose "Get credentials of LinkedServers using Get-MSSQLLinkPasswords for [$SqlInst]"
+        $LinkedServerCredentials = Get-MSSQLLinkPasswords -SqlInstance $SqlInst;        
+        
+        # Create Server Object
+        $srv = New-Object Microsoft.SqlServer.Management.Smo.Server($SqlInst);    
+        #Write-Debug "Server handle created";        
 
-          $ComputerName = $Using:ComputerName;
-          $InstanceName = $Using:InstanceName;
-          $SqlInstance = $Using:SqlInst;
+        #create a Scripter object
+        $script = New-Object Microsoft.SqlServer.Management.Smo.Scripter $srv;
+        #create a ScriptingOptions object
+        $scriptOptions = New-Object Microsoft.SqlServer.Management.Smo.ScriptingOptions;
 
-          Write-Verbose "`$SqlInstance = $SqlInstance";
+        # Default Script Options
+        $scriptOptions.AllowSystemObjects = $false
+        $scriptOptions.ScriptSchema = $true
+        $scriptOptions.IncludeDatabaseContext = $true
+        $scriptOptions.SchemaQualify = $true
+        $scriptOptions.ScriptBatchTerminator = $true
+        $scriptOptions.NoExecuteAs = $true
+        $scriptOptions.Permissions = $true
+        $scriptOptions.ScriptForCreateDrop = $true
+        $scriptOptions.NoCommandTerminator = $false
+        #if($ScriptOut) { $scriptOptions.ToFileOnly = $true; $scriptOptions.Filename = $File; $scriptOptions.AppendToFile; }
 
-          Add-Type -assembly System.Security
-          Add-Type -assembly System.Core
+        #assign the options to the Scripter object
+        $script.Options = $scriptOptions
+        #$transfer.ScriptTransfer() 
 
-          # Set local computername and get all SQL Server instances
-          
-          #Write-Verbose "Find SQL Instances on server $ComputerName"
-          #$SqlInstances = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server' -Name InstalledInstances).InstalledInstances;
+        Write-Verbose "Find all Linked Servers on [$SqlInst]"
+        $LinkedServers = $srv.LinkedServers | Sort-Object Name;
+        $StatementTerminator = @"
+;
 
-          #$SqlInstances
+"@;
+        foreach($link in $LinkedServers) {
+            
+            $tsqlDrop = @"
 
-          #Write-Verbose "Filter out other instances"
-          #if([string]::IsNullOrEmpty($f_InstanceName) -eq $false) {
-            #$SqlInstances = $SqlInstances | Where-Object {$_ -eq $f_InstanceName};
-          #}
-  
-          $Results = New-Object "System.Data.DataTable"
-          $Results.Columns.Add("Instance") | Out-Null
-          $Results.Columns.Add("Linkserver") | Out-Null
-          $Results.Columns.Add("User") | Out-Null
-          $Results.Columns.Add("Password") | Out-Null
 
-          Write-Verbose "Created System.Data.DataTable ";
-  
-          #foreach ($InstanceName in $SqlInstances) {
-  
-            # Start DAC connection to SQL Server
-            # Default instance MSSQLSERVER -> instance name cannot be used in connection string
-            if ($InstanceName -eq "MSSQLSERVER") {
-              $ConnString = "Server=ADMIN:$ComputerName;Trusted_Connection=True"
-            }
-            else {
-              $ConnString = "Server=ADMIN:$ComputerName\$InstanceName;Trusted_Connection=True"
-            }
-            Write-Verbose "`$ConnString = `"$ConnString`"";
-            $Conn = New-Object System.Data.SqlClient.SQLConnection($ConnString);
-  
-            Try{$Conn.Open();}
-            Catch{
-              Write-Error "Error creating DAC connection: $_.Exception.Message"
-              Continue
-            }
-            if ($Conn.State -eq "Open"){
-              Write-Verbose "DAC connection successfull";
+EXEC master.dbo.sp_dropserver @server=N'$($link.Name)', @droplogins='droplogins'
+GO
 
-              Write-Verbose "Query Service Master Key from the database - remove padding from the key";
-              # key_id 102 eq service master key, thumbprint 3 means encrypted with machinekey
-              $SqlCmd="SELECT substring(crypt_property,9,len(crypt_property)-8) FROM sys.key_encryptions WHERE key_id=102 and (thumbprint=0x03 or thumbprint=0x0300000001)"
-              $Cmd = New-Object System.Data.SqlClient.SqlCommand($SqlCmd,$Conn);
-              $SmkBytes=$Cmd.ExecuteScalar()
-              Write-Verbose "`$SmkBytes = `"$SmkBytes`"";
+"@;
+            $tsqlCreate = ($script.Script($link)) -join $StatementTerminator;
+            $tsql = $tsqlDrop + $tsqlCreate;
+
+            $obj = [PSCustomObject]@{
+                        SqlInstance  = $SqlInst;
+                        LinkServer = $link.Name;
+                        ProductName = $link.ProductName;
+                        DataSource = $link.DataSource;
+                        ProviderName = $link.ProviderName;    
+                        CreateScript = $tsql;
+                    }
+            $LinkedServerCollection.Add($obj)|Out-Null;
+            Write-Debug "Inside Loop: First LinkedServer Object";
+        }# LinkedServer Loop
+
+        $LinkedServersFinal = Join-Object -Left $LinkedServerCollection -Right $LinkedServerCredentials -LeftJoinProperty LinkServer -RightJoinProperty Linkserver -Type AllInLeft -RightProperties User, Password;
+        $LinkedServerAllInstances += $LinkedServersFinal;
+    } # SQlInstance Loop
+    $LinkedServerAllInstances = $LinkedServerAllInstances | Select-Object SqlInstance, LinkServer, ProductName, DataSource, ProviderName, User, Password, CreateScript | Sort-Object -Property SqlInstance, LinkServer;
     
-              # Get entropy from the registry - hopefully finds the right SQL server instance
-              Write-Verbose "Get entropy from the registry - hopefully finds the right SQL server instance";
-              $RegPath = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\Instance Names\sql\").$InstanceName
-              [byte[]]$Entropy = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$RegPath\Security\").Entropy
-              Write-Verbose "`$RegPath = `"$RegPath`"";
-              Write-Verbose "`$Entropy = `"$Entropy`"";
+    Write-Verbose "Creating Linked server scriptout with actual Passwords";
+    $LinkedServerAllInstances = $LinkedServerAllInstances | ForEach-Object {
+        $ScriptWithPassword = $_.CreateScript;
+        if([string]::IsNullOrEmpty($_.Password) -eq $false) {
+            $ScriptWithPassword = $_.CreateScript.Replace("@rmtpassword='########'","@rmtpassword='$($_.Password)'");
+        }
+        Add-Member -InputObject $_ -NotePropertyName ScriptOut -NotePropertyValue $ScriptWithPassword;
+        $_;
+    } | Select-Object SqlInstance, LinkServer, ProductName, DataSource, ProviderName, User, Password, ScriptOut;
 
-              # Decrypt the service master key
-              Write-Verbose "Decrypt the service master key";
-              $ServiceKey = [System.Security.Cryptography.ProtectedData]::Unprotect($SmkBytes, $Entropy, 'LocalMachine') 
-    
-              # Choose the encryption algorithm based on the SMK length - 3DES for 2008, AES for 2012
-              # Choose IV length based on the algorithm
-              if (($ServiceKey.Length -eq 16) -or ($ServiceKey.Length -eq 32)) {
-                if ($ServiceKey.Length -eq 16) {
-		          $Decryptor = New-Object System.Security.Cryptography.TripleDESCryptoServiceProvider
-                  $IvLen=8
-                } elseif ($ServiceKey.Length -eq 32){
-                  $Decryptor = New-Object System.Security.Cryptography.AESCryptoServiceProvider
-                  $IvLen=16
-		        }
-  	
-	            # Query link server password information from the DB
-                # Remove header from pwdhash, extract IV (as iv) and ciphertext (as pass)
-	            # Ignore links with blank credentials (integrated auth ?)
-                $SqlCmd = "SELECT sysservers.srvname,syslnklgns.name,substring(syslnklgns.pwdhash,5,$ivlen) iv,substring(syslnklgns.pwdhash,$($ivlen+5),
-	            len(syslnklgns.pwdhash)-$($ivlen+4)) pass FROM master.sys.syslnklgns inner join master.sys.sysservers on syslnklgns.srvid=sysservers.srvid WHERE len(pwdhash)>0"
-                $Cmd = New-Object System.Data.SqlClient.SqlCommand($SqlCmd,$Conn);
-	            $Data=$Cmd.ExecuteReader()
-                $Dt = New-Object "System.Data.DataTable"
-	            $Dt.Load($Data)
-  
-	            # Go through each row in results
-                foreach ($Logins in $Dt) {
-
-                  # decrypt the password using the service master key and the extracted IV
-	              $Decryptor.Padding = "None"
-                  $Decrypt = $Decryptor.CreateDecryptor($ServiceKey,$Logins.iv)
-		          $Stream = New-Object System.IO.MemoryStream (,$Logins.pass)
-		          $Crypto = New-Object System.Security.Cryptography.CryptoStream $Stream,$Decrypt,"Write"
-		
-		          $Crypto.Write($Logins.pass,0,$Logins.pass.Length)
-		          [byte[]]$Decrypted = $Stream.ToArray()
-
-		          # convert decrypted password to unicode
-		          $EncodingType = "System.Text.UnicodeEncoding"
-		          $Encode = New-Object $EncodingType
-		
-		          # Print results - removing the weird padding (8 bytes in the front, some bytes at the end)... 
-		          # Might cause problems but so far seems to work.. may be dependant on SQL server version...
-		          # If problems arise remove the next three lines.. 
-		          $i=8
-		          foreach ($b in $Decrypted) {if ($Decrypted[$i] -ne 0 -and $Decrypted[$i+1] -ne 0 -or $i -eq $Decrypted.Length) {$i -= 1; break;}; $i += 1;}
-		          $Decrypted = $Decrypted[8..$i]
-		          $Results.Rows.Add($InstanceName,$($Logins.srvname),$($Logins.name),$($Encode.GetString($Decrypted))) | Out-Null
-                }
-              } else {
-                Write-Error "Unknown key size"
-	          }
-              $Conn.Close();
-            }
-          #}
-          $Results
-       } # ScriptBlock
-
-       $Results += Invoke-Command -ComputerName $ComputerName -ScriptBlock $ScriptBlock;
-  } # Loop
-
-  $Results | Select-Object @{l='SqlInstance';e={if($_.Instance -eq 'MSSQLSERVER') {$_.PSComputerName} else {$_.PSComputerName+'\'+$_.Instance} }}, Linkserver, User, Password;
+    if($ScriptOut) {
+        foreach($link in $LinkedServerAllInstances) {            
+            $link.ScriptOut | Out-File -FilePath $File -Append -Force;
+            "`nGO`n" | Out-File -FilePath $File -Append -Force;
+        }
+        Write-Host "Output saved in file '$File'";
+        #notepad $File
+    }
+    else {
+        Write-Verbose "Returning result back to Caller";
+        Write-Output $LinkedServerAllInstances;
+    }
 }
