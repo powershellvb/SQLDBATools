@@ -1,9 +1,9 @@
-﻿<# 
+﻿<#
     Module Name:-   SQLDBATools
     Created By:-    Ajay Kumar Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
     Modified Date:- 20-June-2020
-    Version:-       0.0
+    Version:-       0.0.1
 #>
 
 Push-Location;
@@ -42,9 +42,9 @@ if([String]::IsNullOrEmpty($M_dbatools)) {
 
 
 # Check for ActiveDirectory module
-if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }) -eq $null ) 
+if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }) -eq $null )
 {
-    if($verbose) 
+    if($verbose)
     {
         Write-Host "====================================================";
         Write-Host "'ActiveDirectory' module is not installed." -ForegroundColor DarkRed;
