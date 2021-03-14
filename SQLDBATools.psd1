@@ -9,7 +9,7 @@
 @{
 
 # Script module or binary module file associated with this manifest.
-# RootModule = ''
+RootModule = 'SQLDBATools.psm1'
 
 # Version number of this module.
 ModuleVersion = '0.0.1'
@@ -33,7 +33,7 @@ Copyright = '(c) Ajay Kumar Dwivedi. All rights reserved.'
 Description = 'Powershell Module containing cmdlets for carrying out SQL DBA activities'
 
 # Minimum version of the PowerShell engine required by this module
-PowerShellVersion = 3.0
+PowerShellVersion = '3.0'
 
 # Name of the PowerShell host required by this module
 # PowerShellHostName = ''
@@ -51,7 +51,7 @@ PowerShellVersion = 3.0
 # ProcessorArchitecture = ''
 
 # Modules that must be imported into the global environment prior to importing this module
-RequiredModules = @('dbatools','ImportExcel')
+# RequiredModules = @()
 
 # Assemblies that must be loaded prior to importing this module
 # RequiredAssemblies = @()
@@ -95,13 +95,13 @@ PrivateData = @{
     PSData = @{
 
         # Tags applied to this module. These help with module discovery in online galleries.
-        # Tags = @()
+        Tags = @('SQLDBATools','mssqlserver','dba')
 
         # A URL to the license for this module.
         # LicenseUri = ''
 
         # A URL to the main website for this project.
-        # ProjectUri = ''
+        # ProjectUri = 'https://github.com/imajaydwivedi/SQLDBATools'
 
         # A URL to an icon representing this module.
         # IconUri = ''
@@ -116,7 +116,7 @@ PrivateData = @{
         # RequireLicenseAcceptance = $false
 
         # External dependent modules of this module
-        # ExternalModuleDependencies = @()
+        ExternalModuleDependencies = @('dbatools','ImportExcel')
 
     } # End of PSData hashtable
 
