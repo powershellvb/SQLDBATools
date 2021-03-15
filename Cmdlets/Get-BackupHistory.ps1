@@ -35,7 +35,7 @@
 
     # StopAt in String format
     if ([string]::IsNullOrEmpty($StopAtTime) -eq $false) {
-        try {   
+        try {
             Write-Verbose "`$StopAtTime = '$StopAtTime'";
 
             $format = "yyyy-MM-dd HH:mm:ss";

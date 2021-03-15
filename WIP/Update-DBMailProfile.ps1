@@ -35,12 +35,11 @@ Modify-DBMailProfile -SQLInstance ServerName01
     {
           New-Item -ItemType Directory -Force -Path $path;
     }
-    try 
+    try
     {
         Write-Host "Executing script '$scriptPath' on [$SQLInstance] server.";
         Invoke-Sqlcmd -ServerInstance $SQLInstance -Database msdb -InputFile $scriptPath -ErrorAction Stop| `
             Out-File -FilePath "$path\$($SQLInstance)__OUTPUT.txt"
-    
     }
 
     Catch
@@ -51,7 +50,6 @@ Modify-DBMailProfile -SQLInstance ServerName01
             Out-File -FilePath "$path\$($SQLInstance)__ERROR.txt"
         Break
     }
-    
 }
 
 $instances = Invoke-Sqlcmd -ServerInstance 'BAN-1ADWIVEDI-L' -Database DBServers_master -Query 'select [Server/Instance Name] as InstanceName from [dbo].[Production] as p 
