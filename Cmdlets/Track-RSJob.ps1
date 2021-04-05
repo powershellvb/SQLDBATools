@@ -78,6 +78,7 @@
     $resultRsJobs = $rsJobs | Where-Object {$_.HasErrors -eq $false} | Receive-RSJob;
     $failedRsJobs = $rsJobs | Where-Object {$_.HasErrors}
 
+    $failureMessages = @()
     if(-not [String]::IsNullOrEmpty($failedRsJobs)) {
         $failureMessages = $failedRsJobs | Receive-RSJob
         if(-not [String]::IsNullOrEmpty($LogFile)) {
