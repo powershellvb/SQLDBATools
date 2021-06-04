@@ -55,6 +55,80 @@ Server02      G:\                 674            483            72           191
     BEGIN 
     {
         $Result = @();
+        Add-Type -TypeDefinition @"
+using System;
+using Microsoft.Win32.SafeHandles;
+using System.IO;
+using System.Runtime.InteropServices;
+ 
+public class GetDisk
+{
+ private const uint IoctlVolumeGetVolumeDiskExtents = 0x560000;
+ 
+ [StructLayout(LayoutKind.Sequential)]
+ public struct DiskExtent
+ {
+ public int DiskNumber;
+ public Int64 StartingOffset;
+ public Int64 ExtentLength;
+ }
+ 
+ [StructLayout(LayoutKind.Sequential)]
+ public struct DiskExtents
+ {
+ public int numberOfExtents;
+ public DiskExtent first;
+ }
+ 
+ [DllImport("Kernel32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+ private static extern SafeFileHandle CreateFile(
+ string lpFileName,
+ [MarshalAs(UnmanagedType.U4)] FileAccess dwDesiredAccess,
+ [MarshalAs(UnmanagedType.U4)] FileShare dwShareMode,
+ IntPtr lpSecurityAttributes,
+ [MarshalAs(UnmanagedType.U4)] FileMode dwCreationDisposition,
+ [MarshalAs(UnmanagedType.U4)] FileAttributes dwFlagsAndAttributes,
+ IntPtr hTemplateFile);
+ 
+ [DllImport("Kernel32.dll", SetLastError = false, CharSet = CharSet.Auto)]
+ private static extern bool DeviceIoControl(
+ SafeFileHandle hDevice,
+ uint IoControlCode,
+ [MarshalAs(UnmanagedType.AsAny)] [In] object InBuffer,
+ uint nInBufferSize,
+ ref DiskExtents OutBuffer,
+ int nOutBufferSize,
+ ref uint pBytesReturned,
+ IntPtr Overlapped
+);
+ 
+ public static string GetPhysicalDriveString(string path)
+ {
+ //clean path up
+ path = path.TrimEnd('\\');
+ if (!path.StartsWith(@"\\.\"))
+ path = @"\\.\" + path;
+ 
+ SafeFileHandle shwnd = CreateFile(path, FileAccess.Read, FileShare.Read | FileShare.Write, IntPtr.Zero, FileMode.Open, 0,
+ IntPtr.Zero);
+ if (shwnd.IsInvalid)
+ {
+ //Marshal.ThrowExceptionForHR(Marshal.GetLastWin32Error());
+ Exception e = Marshal.GetExceptionForHR(Marshal.GetLastWin32Error());
+ }
+ 
+ var bytesReturned = new uint();
+ var de1 = new DiskExtents();
+ bool result = DeviceIoControl(shwnd, IoctlVolumeGetVolumeDiskExtents, IntPtr.Zero, 0, ref de1,
+ Marshal.SizeOf(de1), ref bytesReturned, IntPtr.Zero);
+ shwnd.Close();
+ if(result)
+ return @"\\.\PhysicalDrive" + de1.first.DiskNumber;
+ return null;
+ }
+}
+ 
+"@
     }
     PROCESS 
     {
@@ -70,28 +144,32 @@ Server02      G:\                 674            483            72           191
             $Partitions = @();
             $DiskVolumeInfo = @();
 
-           $Volumes =  Get-WmiObject -Class win32_volume -ComputerName $Computer -Filter "DriveType=3" | Where-Object {$_.Name -notlike '\\?\*'} |                    
-                    Select-Object -Property @{l='ComputerName';e={$_.PSComputerName}}, 
-                                            @{l='VolumeName';e={$_.Name}}, 
-                                            @{l='Capacity(GB)';e={$_.Capacity / 1GB -AS [INT]}},
-                                            @{l='BlockSize(KB)';e={$_.BlockSize / 1KB -AS [INT]}},
-                                            @{l='Used Space(GB)';e={($_.Capacity - $_.FreeSpace)/ 1GB -AS [INT]}},
-                                            @{l='Used Space(%)';e={((($_.Capacity - $_.FreeSpace) / $_.Capacity) * 100) -AS [INT]}},
-                                            @{l='FreeSpace(GB)';e={$_.FreeSpace / 1GB -AS [INT]}},
-                                            Label;
+            $Volumes =  Get-WmiObject -Class win32_volume -ComputerName $Computer -Filter "DriveType=3" | Where-Object {$_.Name -notlike '\\?\*'} |
+                            Select-Object -Property @{l='ComputerName';e={$_.PSComputerName}},
+                                                    @{l='VolumeName';e={$_.Name}},
+                                                    @{l='Capacity(GB)';e={$_.Capacity / 1GB -AS [INT]}},
+                                                    @{l='BlockSize(KB)';e={$_.BlockSize / 1KB -AS [INT]}},
+                                                    @{l='Used Space(GB)';e={($_.Capacity - $_.FreeSpace)/ 1GB -AS [INT]}},
+                                                    @{l='Used Space(%)';e={((($_.Capacity - $_.FreeSpace) / $_.Capacity) * 100) -AS [INT]}},
+                                                    @{l='FreeSpace(GB)';e={$_.FreeSpace / 1GB -AS [INT]}},
+                                                    Label,
+                                                    @{l='DeviceID';e={$($_.DeviceID).Replace("\\?\",'').Replace("\",'')}};
 
-            
+            $Partitions = Get-WmiObject -Class win32_LogicalDiskToPartition -ComputerName $Computer |
+                                Select-Object @{l='DiskID';e={if($_.Antecedent -match "Win32_DiskPartition.DeviceID=`"Disk\s#(?'DiskID'\d{1,3}),\sPartition\s#(?'PartitionNo'\d{1,3})") {$Matches['DiskID']} else {$null} }},
+                                                @{l='PartitionNo';e={if($_.Antecedent -match "Win32_DiskPartition.DeviceID=`"Disk\s#(?'DiskID'\d{1,3}),\sPartition\s#(?'PartitionNo'\d{1,3})") {$Matches['PartitionNo']} else {$null} }},
+                                                @{l='VolumeName';e={if($_.Dependent -match "Win32_LogicalDisk.DeviceID=`"(?'VolumeName'[a-zA-Z]:)`"") {$Matches['VolumeName']+'\'} else {$null} }}
 
-            $Disks = Get-WmiObject -Class win32_DiskDrive -ComputerName $Computer | 
-                                Select-Object -Property @{l='Is_SAN_Disk';e={if(($_.PNPDeviceID).Split('\')[0] -in @('SCSI')){'No'}else{'Yes'}}}, @{l='DiskID';e={[int32]($_.Index)}},@{l='DiskModel';e={$_.Model}},@{l='LUN';e={$_.SCSILogicalUnit}};
+            $Disks = Get-WmiObject -Class win32_DiskDrive -ComputerName $Computer |
+                            Select-Object -Property @{l='Is_SAN_Disk';e={if(($_.PNPDeviceID).Split('\')[0] -in @('SCSI')){'No'}else{'Yes'}}}, `
+                                                    @{l='DiskID';e={[int32]($_.Index)}}, `
+                                                    @{l='DiskModel';e={$_.Model}}, `
+                                                    @{l='LUN';e={$_.SCSILogicalUnit}};
 
-            $Partitions = Get-WmiObject -Class win32_LogicalDiskToPartition -ComputerName $Computer | 
-                                Select-Object @{l='DiskID';e={if($_.Antecedent -match "Win32_DiskPartition.DeviceID=`"Disk\s#(?'DiskID'\d{1,3}),\sPartition\s#(?'PartitionNo'\d{1,3})") {$Matches['DiskID']} else {$null} }}, 
-                                              @{l='PartitionNo';e={if($_.Antecedent -match "Win32_DiskPartition.DeviceID=`"Disk\s#(?'DiskID'\d{1,3}),\sPartition\s#(?'PartitionNo'\d{1,3})") {$Matches['PartitionNo']} else {$null} }}, 
-                                              @{l='VolumeName';e={if($_.Dependent -match "Win32_LogicalDisk.DeviceID=`"(?'VolumeName'[a-zA-Z]:)`"") {$Matches['VolumeName']+'\'} else {$null} }}
-                            
             $VolPart = Join-Object -Left $Volumes -Right $Partitions -LeftJoinProperty VolumeName -RightJoinProperty VolumeName -Type AllInLeft -RightProperties @{l='DiskID';e={[int32]($_.DiskID)}},PartitionNo;
-            $DiskVolumeInfo = Join-Object -Left $VolPart -Right $Disks  -LeftJoinProperty DiskID -RightJoinProperty DiskID -Type AllInLeft -RightProperties Is_SAN_Disk, LUN, DiskModel
+            $VolPart = $VolPart | % {$vol = $_; if([String]::IsNullOrEmpty($_.DiskID)) { $_.DiskID = [int32]([GetDisk]::GetPhysicalDriveString($_.DeviceID)).Replace('\\.\PhysicalDrive','') }; $_}
+
+            $DiskVolumeInfo = Join-Object -Left $VolPart -Right $Disks -LeftJoinProperty DiskID -RightJoinProperty DiskID -Type AllInLeft -RightProperties Is_SAN_Disk, LUN, DiskModel, DiskID
 
             foreach ($diskInfo in $DiskVolumeInfo)
             {
