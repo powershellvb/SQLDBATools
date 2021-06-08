@@ -2,7 +2,7 @@
     Module Name:-   SQLDBATools
     Created By:-    Ajay Kumar Dwivedi
     Email ID:-      ajay.dwivedi2007@gmail.com
-    Modified Date:- 20-June-2020
+    Modified Date:- 10-June-2021
     Version:-       0.0.1
 #>
 
@@ -12,7 +12,12 @@ Push-Location;
 Set-StrictMode -Version Latest
 
 # Check for OS version
-[bool]$isWin = $PSVersionTable.Platform -match '^($|(Microsoft )?Win)'
+if([bool]($PSVersionTable.PSobject.Properties.name -match "Platform")) {
+    [bool]$isWin = $PSVersionTable.Platform -match '^($|(Microsoft )?Win)'
+}
+else {
+    [bool]$isWin = $true
+}
 $modulePath = Split-Path $MyInvocation.MyCommand.Path -Parent;
 #Write-Host "$PSScriptRoot"
 $cmdletPath = Join-Path $modulePath 'Cmdlets'
@@ -21,11 +26,6 @@ $verbose = $false;
 if ($PSBoundParameters.ContainsKey('Verbose')) { # Command line specifies -Verbose[:$false]
     $verbose = $PSBoundParameters.Get_Item('Verbose')
 }
-<#
-if($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent -or [String]::IsNullOrEmpty($MyInvocation.PSScriptRoot)) {
-    $verbose = $true;
-}
-#>
 
 # Set basic environment variables
 [string]$envFileBase = $null
@@ -56,10 +56,12 @@ $M_dbatools = Get-Module -Name dbatools -ListAvailable -Verbose:$false;
 if([String]::IsNullOrEmpty($M_dbatools)) {
     Write-Output 'dbatools powershell module needs to be installed. Kindly execute below command in Elevated shell:-'
     Write-Output "`tInstall-Module -Name dbatools -Scope AllUsers -Force -Confirm:`$false -Verbose:`$false'"
-} else {
+} 
+<#
+else {
     Import-Module dbatools -Global -Verbose:$false | Out-Null;
 }
-
+#>
 
 # Check for ActiveDirectory module
 if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }) -eq $null )
@@ -79,29 +81,26 @@ if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }
     }
 }
 
-<#
+
 if($verbose) {
     Write-Host "====================================================";
     Write-Host "'Get-SqlServerProductKeys.psm1' Module is being loaded.." -ForegroundColor Yellow;
 }
-Import-Module -Name $(Join-Path $cmdletPath Get-SqlServerProductKeys.psm1)
-#>
+Import-Module -Name $(Join-Path $modulePath "ChildModules$($pathSeparator)Get-SqlServerProductKeys.psm1")
+
 
 if($verbose) {
     Write-Host "====================================================";
     Write-Host "Loading other Functions.." -ForegroundColor Yellow;
 }
 foreach($file in Get-ChildItem -Path $(Join-Path $PSScriptRoot Cmdlets)) {
-    . $file.FullName
-    #$file.FullName | Write-Host
-    #$ExecutionContext.SessionState.InvokeCommand.GetCommand($($file.FullName), 'ExternalScript')
+    . ($file.FullName)
 }
-
 #Export-ModuleMember -Alias * -Function * -Cmdlet *
 
 Push-Location;
 
 <#
 Remove-Module SQLDBATools,dbatools,SqlServer -ErrorAction SilentlyContinue;
-Import-Module SQLDBATools,dbatools
+Import-Module SQLDBATools
 #>
