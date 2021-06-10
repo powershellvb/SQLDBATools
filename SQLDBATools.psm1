@@ -19,8 +19,7 @@ else {
     [bool]$isWin = $true
 }
 $modulePath = Split-Path $MyInvocation.MyCommand.Path -Parent;
-#Write-Host "$PSScriptRoot"
-$cmdletPath = Join-Path $modulePath 'Cmdlets'
+$functionsPath = Join-Path $modulePath 'Functions'
 $pathSeparator = if($isWin) {'\'} else {'/'}
 $verbose = $false;
 if ($PSBoundParameters.ContainsKey('Verbose')) { # Command line specifies -Verbose[:$false]
@@ -31,14 +30,14 @@ if ($PSBoundParameters.ContainsKey('Verbose')) { # Command line specifies -Verbo
 [string]$envFileBase = $null
 [string]$envFile = $null
 if($isWin) {
-    $envFileBase = Join-Path $modulePath "Cmdlets\Set-EnvironmentVariables.ps1"
+    $envFileBase = Join-Path $modulePath "Functions\Set-EnvironmentVariables.ps1"
 } else {
-    $envFileBase = Join-Path $modulePath "Cmdlets/Set-EnvironmentVariables.ps1"
+    $envFileBase = Join-Path $modulePath "Functions/Set-EnvironmentVariables.ps1"
 }
 $envFile = Join-Path $modulePath "Set-EnvironmentVariables.ps1"
 
 # First Load Environment Variables
-# File :Set-EnvironmentVariables.ps1" is also present inside Cmdlets subdirectory with dummy values.
+# File :Set-EnvironmentVariables.ps1" is also present inside Functions subdirectory with dummy values.
 if($verbose) {
     Write-Host "====================================================";
     Write-Host "'Environment Variables are being loaded from '$envFile'.." -ForegroundColor Yellow;
@@ -71,7 +70,7 @@ if ( (Get-Module -ListAvailable | Where-Object { $_.Name -eq 'ActiveDirectory' }
         Write-Host "====================================================";
         Write-Host "'ActiveDirectory' module is not installed." -ForegroundColor DarkRed;
         @"
-    ** So, few functions like 'Add-ApplicationInfo' might not work with this module. Kindly execute below Cmdlets to import ActiveDirectory.
+    ** So, few functions like 'Add-ApplicationInfo' might not work with this module. Kindly execute below Functions to import ActiveDirectory.
 
         Install-Module ServerManager -Force;
         Add-WindowsFeature RSAT-AD-PowerShell;
@@ -93,7 +92,8 @@ if($verbose) {
     Write-Host "====================================================";
     Write-Host "Loading other Functions.." -ForegroundColor Yellow;
 }
-foreach($file in Get-ChildItem -Path $(Join-Path $PSScriptRoot Cmdlets)) {
+#foreach($file in Get-ChildItem -Path $(Join-Path $PSScriptRoot Functions)) {
+foreach($file in Get-ChildItem -Path $functionsPath) {
     . ($file.FullName)
 }
 #Export-ModuleMember -Alias * -Function * -Cmdlet *
